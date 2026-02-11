@@ -14,6 +14,12 @@ interface Window {
             startSave: (filePath: string) => Promise<{ success: boolean; error?: string }>;
             writeChunk: (filePath: string, chunk: ArrayBuffer) => Promise<{ success: boolean; error?: string }>;
             stopSave: (data: { filePath: string; userId?: number; title?: string; sourceUrl?: string; saveToDb?: boolean }) => Promise<{ success: boolean; error?: string }>;
+        };
+        drive: {
+            authenticate: () => Promise<{ success: boolean; tokens?: any; error?: string }>;
+            upload: (filePath: string, tokens: any) => Promise<{ success: boolean; error?: string }>;
+            logout: () => Promise<{ success: boolean; error?: string }>;
+            getSession: () => Promise<{ isLoggedIn: boolean; user?: any }>;
         }
     }
 }

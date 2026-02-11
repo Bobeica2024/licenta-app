@@ -2,6 +2,7 @@ import { HashRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
+import Settings from './pages/Settings';
 
 const AppLayout = () => {
   return (
@@ -26,7 +27,7 @@ function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/library" element={<div className="p-8">Library (Coming Soon)</div>} />
-          <Route path="/settings" element={<div className="p-8">Settings (Coming Soon)</div>} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>
     </Router>

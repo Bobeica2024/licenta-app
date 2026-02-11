@@ -2,9 +2,11 @@ import { app, BrowserWindow } from 'electron'
 import './db' // Initialize database
 import { setupAuthHandlers } from './auth';
 import { setupRecorderHandlers } from './recorder';
+import { setupDriveHandlers } from './drive';
 
 setupAuthHandlers();
 setupRecorderHandlers();
+setupDriveHandlers();
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'

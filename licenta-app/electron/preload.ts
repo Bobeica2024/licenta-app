@@ -32,5 +32,11 @@ contextBridge.exposeInMainWorld('api', {
     startSave: (filePath: string) => ipcRenderer.invoke('recorder:start-save', filePath),
     writeChunk: (filePath: string, chunk: ArrayBuffer) => ipcRenderer.invoke('recorder:write-chunk', { filePath, chunk }),
     stopSave: (data: any) => ipcRenderer.invoke('recorder:stop-save', data),
+  },
+  drive: {
+    authenticate: () => ipcRenderer.invoke('drive:authenticate'),
+    upload: (filePath: string, tokens: any) => ipcRenderer.invoke('drive:upload', { filePath, tokens }),
+    logout: () => ipcRenderer.invoke('drive:logout'),
+    getSession: () => ipcRenderer.invoke('drive:get-session'),
   }
 })

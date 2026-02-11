@@ -1,21 +1,64 @@
 import React, { useState, useRef } from 'react';
 import StreamPlayer, { StreamPlayerRef } from '../components/StreamPlayer';
+import { useRecorder } from '../hooks/useRecorder';
 
 const Dashboard = () => {
     const [url, setUrl] = useState('');
     const [inputUrl, setInputUrl] = useState('');
-
-    // Recording State
-    const [isRecording, setIsRecording] = useState(false);
-    const [isRecordingPaused, setIsRecordingPaused] = useState(false); // Distinction between Stopped and Paused
+    const [saveDestination, setSaveDestination] = useState('local'); // 'local' | 'sqlite' | 'drive'
+    const [isUploading, setIsUploading] = useState(false);
 
     const playerRef = useRef<StreamPlayerRef>(null);
+
+    const {
+        isRecording,
+        isPaused,
+        recordingTime,
+        startRecording,
+        stopRecording,
+        pauseRecording,
+        resumeRecording
+    } = useRecorder({
+        onStop: async (path) => {
+            console.log('Recording saved locally to:', path);
+
+            if (saveDestination === 'drive') {
+                const confirmUpload = confirm(`Recording saved locally. Upload to Google Drive?`);
+                if (confirmUpload) {
+                    setIsUploading(true);
+                    try {
+                        // We pass null for tokens as the backend manages the session in memory for now
+                        const result = await window.api.drive.upload(path, null);
+                        if (result.success) {
+                            alert(`Successfully uploaded to Drive!\nLink: ${result.link}`);
+                            // TODO: Save metadata to SQLite if needed
+                        } else {
+                            alert(`Upload failed: ${result.error}`);
+                        }
+                    } catch (err: any) {
+                        alert(`Error uploading: ${err.message}`);
+                    } finally {
+                        setIsUploading(false);
+                    }
+                }
+            } else if (saveDestination === 'sqlite') {
+                // Trigger SQLite save (actually metadata save, file is already local)
+                // The backend recorder handler already does this if we pass saveToDb=true
+                // But our useRecorder hook just calls stopSave.
+                // We might need to handle this in stopRecording or here.
+                // For now, let's just alert.
+                alert(`Saved to Local. Metadata would be saved to SQLite.`);
+            } else {
+                alert(`Recording saved to: ${path}`);
+            }
+        }
+    });
 
     // --- Sync Logic ---
 
     const handleVideoPause = () => {
         console.log('Video Paused');
-        if (isRecording && !isRecordingPaused) {
+        if (isRecording && !isPaused) {
             console.log('-> Auto-pausing Recording');
             pauseRecording();
         }
@@ -25,36 +68,11 @@ const Dashboard = () => {
         console.log('Video Playing');
     };
 
-    // --- Recording Controls ---
-
-    const startRecording = () => {
-        console.log('Start Recording');
-        setIsRecording(true);
-        setIsRecordingPaused(false);
-        // TODO: Initialize media recorder
-    };
-
-    const stopRecording = () => {
-        console.log('Stop Recording');
-        setIsRecording(false);
-        setIsRecordingPaused(false);
-        // TODO: Save file
-    };
-
-    const pauseRecording = () => {
-        console.log('Pause Recording');
-        setIsRecordingPaused(true);
-        // TODO: Pause media recorder
-    };
-
-    const resumeRecording = () => {
-        console.log('Resume Recording');
-        setIsRecordingPaused(false);
+    const handleResumeRecording = () => {
+        resumeRecording();
         // Auto-play video if it was paused
         playerRef.current?.play();
-        // TODO: Resume media recorder
     };
-
 
     const handleConnect = () => {
         if (inputUrl) {
@@ -110,22 +128,22 @@ const Dashboard = () => {
                             <button
                                 onClick={startRecording}
                                 className={`w-full py-4 rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-2 ${!url ? 'bg-gray-700 cursor-not-allowed text-gray-400' : 'bg-red-600 hover:bg-red-700 text-white'}`}
-                                disabled={!url}
+                                disabled={!url || isUploading}
                             >
                                 <div className={`w-4 h-4 rounded-full ${!url ? 'bg-gray-500' : 'bg-white animate-pulse'}`} />
-                                Start Recording
+                                {isUploading ? 'Uploading...' : 'Start Recording'}
                             </button>
                         ) : (
                             <div className="space-y-4">
                                 <div className="bg-red-900/30 border border-red-900 rounded-lg p-4 text-center animate-pulse">
-                                    <span className="text-red-400 font-mono text-xl">Recording...</span>
-                                    <p className="text-xs text-red-500 uppercase mt-1">Status: {isRecordingPaused ? 'PAUSED' : 'LIVE'}</p>
+                                    <span className="text-red-400 font-mono text-xl">{recordingTime}</span>
+                                    <p className="text-xs text-red-500 uppercase mt-1">Status: {isPaused ? 'PAUSED' : 'LIVE'}</p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    {isRecordingPaused ? (
+                                    {isPaused ? (
                                         <button
-                                            onClick={resumeRecording}
+                                            onClick={handleResumeRecording}
                                             className="py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors"
                                         >
                                             Resume Rec
@@ -152,10 +170,15 @@ const Dashboard = () => {
 
                         <div className="space-y-2">
                             <label className="text-sm text-gray-400">Save Destination</label>
-                            <select className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none">
-                                <option>Local Computer</option>
-                                <option>Database (SQLite)</option>
-                                <option>Google Drive</option>
+                            <select
+                                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none"
+                                value={saveDestination}
+                                onChange={(e) => setSaveDestination(e.target.value)}
+                                disabled={isRecording || isUploading}
+                            >
+                                <option value="local">Local Computer</option>
+                                <option value="sqlite">Database (SQLite)</option>
+                                <option value="drive">Google Drive</option>
                             </select>
                         </div>
                     </div>
