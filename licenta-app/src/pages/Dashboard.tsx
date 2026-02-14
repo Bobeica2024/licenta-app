@@ -106,6 +106,7 @@ const Dashboard = () => {
                     <div className="bg-black rounded-xl border border-gray-800 flex-1 overflow-hidden relative">
                         {url ? (
                             <StreamPlayer
+                                key={url}
                                 ref={playerRef}
                                 url={url}
                                 onPause={handleVideoPause}

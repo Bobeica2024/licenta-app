@@ -13,7 +13,7 @@ export interface StreamPlayerRef {
 }
 
 const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPlay, onPause }, ref) => {
-    const [playing, setPlaying] = useState(false);
+    const [playing, setPlaying] = useState(true);
     // Use any to bypass strict type checking for the library ref if needed
     const playerRef = useRef<any>(null);
 
