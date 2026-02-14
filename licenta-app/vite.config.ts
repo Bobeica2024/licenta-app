@@ -11,6 +11,21 @@ export default defineConfig({
       main: {
         // Shortcut of `build.lib.entry`.
         entry: 'electron/main.ts',
+        vite: {
+          build: {
+            rollupOptions: {
+              external: ['googleapis', 'better-sqlite3'],
+            },
+            commonjsOptions: {
+              ignoreDynamicRequires: true,
+            },
+          },
+          define: {
+            // Fix for "ReferenceError: __filename is not defined" in ESM
+            __dirname: 'import.meta.dirname',
+            __filename: 'import.meta.filename',
+          },
+        },
       },
       preload: {
         // Shortcut of `build.rollupOptions.input`.

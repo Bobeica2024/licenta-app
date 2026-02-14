@@ -1,17 +1,19 @@
 import { ipcMain, shell } from 'electron';
-import { OAuth2Client } from 'google-auth-library';
-import { google } from 'googleapis';
 import http from 'http';
 import url from 'url';
 import fs from 'fs';
 import path from 'path';
+
+// Lazy load large libraries
+// import { OAuth2Client } from 'google-auth-library';
+// import { google } from 'googleapis';
 
 // TODO: These should be provided by User or Env
 const CLIENT_ID = 'YOUR_CLIENT_ID';
 const CLIENT_SECRET = 'YOUR_CLIENT_SECRET';
 const REDIRECT_URI = 'http://localhost:5000/callback';
 
-let oAuth2Client: OAuth2Client | null = null;
+let oAuth2Client: any = null;
 let server: http.Server | null = null;
 let currentTokens: any = null; // Stored in memory for now
 
@@ -25,7 +27,8 @@ export function setupDriveHandlers() {
 
   // 2. Start Auth Flow
   ipcMain.handle('drive:authenticate', async () => {
-    return new Promise((resolve) => {
+    return new Promise(async (resolve) => {
+      const { OAuth2Client } = await import('google-auth-library');
       oAuth2Client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
       const authorizeUrl = oAuth2Client.generateAuthUrl({
         access_type: 'offline',
@@ -93,10 +96,12 @@ export function setupDriveHandlers() {
 
       // Ensure client has credentials
       if (!oAuth2Client) {
+        const { OAuth2Client } = await import('google-auth-library');
         oAuth2Client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
       }
       oAuth2Client.setCredentials(tokens);
 
+      const { google } = await import('googleapis');
       const drive = google.drive({ version: 'v3', auth: oAuth2Client });
 
       const response = await drive.files.create({

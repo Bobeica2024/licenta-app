@@ -31,6 +31,10 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
                 height="100%"
                 playing={playing}
                 controls={true}
+                onReady={() => console.log('StreamPlayer: Ready')}
+                onStart={() => console.log('StreamPlayer: Started')}
+                onBuffer={() => console.log('StreamPlayer: Buffering')}
+                onError={(e) => console.error('StreamPlayer Error:', e)}
                 onPlay={() => {
                     setPlaying(true);
                     onPlay?.();
