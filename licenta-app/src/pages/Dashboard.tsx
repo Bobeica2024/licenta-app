@@ -263,10 +263,13 @@ const Dashboard = () => {
                                     onPause={handleVideoPauseCallback}
                                     onPlay={handleVideoPlayCallback}
                                 />
+                                {isRecording && (
+                                <div className="absolute inset-0 z-50 bg-transparent cursor-none" />
+                            )}
                             ) : (
-                                <div className="flex items-center justify-center h-full text-gray-500">
-                                    No stream connected
-                                </div>
+                            <div className="flex items-center justify-center h-full text-gray-500">
+                                No stream connected
+                            </div>
                             )}
                         </div>
                     </div>
