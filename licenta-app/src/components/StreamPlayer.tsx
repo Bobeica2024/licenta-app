@@ -16,12 +16,14 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
     const [playing, setPlaying] = useState(true);
     // Use any to bypass strict type checking for the library ref if needed
     const playerRef = useRef<any>(null);
+    const [showRawYoutube, setShowRawYoutube] = useState(false);
 
     const [error, setError] = useState<string | null>(null);
 
     useImperativeHandle(ref, () => ({
         play: () => setPlaying(true),
         pause: () => setPlaying(false),
+        toggleRawYoutube: () => setShowRawYoutube(prev => !prev) // Expose toggle for testing
     }));
 
     return (
@@ -34,7 +36,20 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
                     </div>
                 </div>
             )}
-            {url.endsWith('.mp4') ? (
+            {showRawYoutube ? (
+                <div style={{ padding: 20, background: 'blue' }}>
+                    <p style={{ color: 'white' }}>Raw YouTube Iframe Test</p>
+                    <iframe
+                        width="100%"
+                        height="300"
+                        src={`https://www.youtube.com/embed/${url.includes('v=') ? url.split('v=')[1] : ''}`}
+                        title="YouTube video player"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                    ></iframe>
+                </div>
+            ) : url.endsWith('.mp4') ? (
                 <div style={{ padding: 20, background: 'red' }}>
                     <p style={{ color: 'white' }}>Raw Video Tag Test</p>
                     <video
@@ -48,22 +63,37 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
                 </div>
             ) : (
                 <ReactPlayer
-                    key={url} // Force remount when URL changes
+                    key={url}
                     ref={playerRef}
                     url={url}
                     width="100%"
                     height="100%"
                     playing={playing}
                     controls={true}
-                    muted={true} // Mute by default to allow autoplay
+                    muted={true}
                     config={{
                         youtube: {
                             playerVars: {
-                                origin: window.location.origin,
+                                origin: window.location.origin, // Reset to standard behavior first
                                 modestbranding: 1,
                                 rel: 0
                             }
                         }
+                    }}
+                    onReady={() => console.log('StreamPlayer: Ready')}
+                    onStart={() => console.log('StreamPlayer: Started')}
+                    onProgress={(p: { playedSeconds: number }) => console.log('StreamPlayer: Progress', p.playedSeconds)}
+                    onError={(e) => {
+                        console.error('StreamPlayer Error:', e);
+                        setError("Failed to load video. Please check URL or connection.");
+                    }}
+                    onPlay={() => {
+                        setPlaying(true);
+                        onPlay?.();
+                    }}
+                    onPause={() => {
+                        setPlaying(false);
+                        onPause?.();
                     }}
                 />
             )}

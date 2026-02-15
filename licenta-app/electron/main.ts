@@ -60,9 +60,10 @@ function createWindow() {
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
     webPreferences: {
       preload: finalPreload,
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
+      webSecurity: true, // Ensure web security is enabled
     },
   })
 
@@ -118,7 +119,9 @@ app.whenReady().then(() => {
   session.defaultSession.webRequest.onBeforeSendHeaders(
     { urls: ['*://*.youtube.com/*', '*://*.googlevideo.com/*'] },
     (details: any, callback: any) => {
-      details.requestHeaders['Referer'] = 'https://www.youtube.com/';
+      // details.requestHeaders['Referer'] = 'https://www.youtube.com/';
+      // Force a standard browser User-Agent to prevent YouTube from blocking Electron
+      // details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'; (Commented out for testing)
       callback({ cancel: false, requestHeaders: details.requestHeaders });
     }
   );

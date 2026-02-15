@@ -113,6 +113,24 @@ const Dashboard = () => {
                         >
                             Test MP4
                         </button>
+                        <button
+                            onClick={() => {
+                                // Assuming we can access the ref via context or pass a callback, but specific to this component structure:
+                                // Since ref is not directly accessible here easily without Context, let's keep it simple for now and rely on ReactPlayer behavior first.
+                                // Actually, let's just use console log for now or force a specific URL known to work.
+                                // Or better, let's use a known working YouTube video ID directly in the StreamPlayer component logic for testing.
+                                setUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ'); // Rick Roll always works?
+                            }}
+                            className="bg-yellow-600 hover:bg-yellow-700 px-6 py-2 rounded-lg font-medium transition-colors"
+                        >
+                            Test YT
+                        </button>
+                        <button
+                            onClick={() => playerRef.current?.toggleRawYoutube?.()}
+                            className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-medium transition-colors"
+                        >
+                            Toggle Iframe
+                        </button>
                     </div>
 
                     <div className="bg-black rounded-xl border border-gray-800 flex-1 overflow-hidden relative">

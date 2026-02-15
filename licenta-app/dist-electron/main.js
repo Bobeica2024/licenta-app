@@ -1970,9 +1970,11 @@ function createWindow() {
     icon: path$1.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     webPreferences: {
       preload: finalPreload,
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      webSecurity: true
+      // Ensure web security is enabled
     }
   });
   win.webContents.on("preload-error", (event, preloadPath, error) => {
@@ -2008,7 +2010,6 @@ app.whenReady().then(() => {
   session.defaultSession.webRequest.onBeforeSendHeaders(
     { urls: ["*://*.youtube.com/*", "*://*.googlevideo.com/*"] },
     (details, callback) => {
-      details.requestHeaders["Referer"] = "https://www.youtube.com/";
       callback({ cancel: false, requestHeaders: details.requestHeaders });
     }
   );
