@@ -10,10 +10,14 @@ interface Window {
         };
         recorder: {
             getSources: () => Promise<Array<{ id: string; name: string; thumbnail: string }>>;
-            selectPath: () => Promise<string>;
+            // selectPath: () => Promise<string>;
+            getTempPath: () => Promise<string>;
             startSave: (filePath: string) => Promise<{ success: boolean; error?: string }>;
             writeChunk: (filePath: string, chunk: ArrayBuffer) => Promise<{ success: boolean; error?: string }>;
             stopSave: (data: { filePath: string; userId?: number; title?: string; sourceUrl?: string; saveToDb?: boolean }) => Promise<{ success: boolean; error?: string }>;
+            cropVideo: (data: { inputPath: string; crop: { x: number; y: number; width: number; height: number } }) => Promise<{ success: boolean; outputPath?: string; error?: string }>;
+            deleteTempFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
+            saveFile: (data: { tempPath: string; destination: string; userId?: number; title?: string; sourceUrl?: string }) => Promise<{ success: boolean; filePath?: string; error?: string }>;
         };
         drive: {
             authenticate: () => Promise<{ success: boolean; tokens?: any; error?: string }>;

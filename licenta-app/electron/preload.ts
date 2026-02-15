@@ -33,10 +33,14 @@ try {
     },
     recorder: {
       getSources: () => ipcRenderer.invoke('recorder:get-sources'),
-      selectPath: () => ipcRenderer.invoke('recorder:select-path'),
+      // selectPath: () => ipcRenderer.invoke('recorder:select-path'), // Deprecated
+      getTempPath: () => ipcRenderer.invoke('recorder:get-temp-path'),
       startSave: (filePath: string) => ipcRenderer.invoke('recorder:start-save', filePath),
       writeChunk: (filePath: string, chunk: ArrayBuffer) => ipcRenderer.invoke('recorder:write-chunk', { filePath, chunk }),
       stopSave: (data: any) => ipcRenderer.invoke('recorder:stop-save', data),
+      cropVideo: (data: any) => ipcRenderer.invoke('recorder:crop-video', data),
+      deleteTempFile: (filePath: string) => ipcRenderer.invoke('recorder:delete-temp-file', filePath),
+      saveFile: (data: any) => ipcRenderer.invoke('recorder:save-file', data),
     },
     drive: {
       authenticate: () => ipcRenderer.invoke('drive:authenticate'),

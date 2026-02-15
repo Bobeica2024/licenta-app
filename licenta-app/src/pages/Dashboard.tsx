@@ -8,7 +8,15 @@ const Dashboard = () => {
     const [saveDestination, setSaveDestination] = useState('local'); // 'local' | 'sqlite' | 'drive'
     const [isUploading, setIsUploading] = useState(false);
 
+    const [showRawYoutube, setShowRawYoutube] = useState(false);
+    const playerWrapperRef = useRef<HTMLDivElement>(null);
+
     const playerRef = useRef<StreamPlayerRef>(null);
+
+    // We need to track the cropped path if it exists to save THAT one instead of the original temp.
+    // Since onStop is async and independent of the render cycle for saving (user clicks button later),
+    // we need to store the result of cropping.
+    const [croppedFilePath, setCroppedFilePath] = useState<string | null>(null);
 
     const {
         isRecording,
@@ -16,61 +24,153 @@ const Dashboard = () => {
         recordingTime,
         startRecording,
         stopRecording,
+        discardRecording,
         pauseRecording,
-        resumeRecording
+        resumeRecording,
+        currentFilePath
     } = useRecorder({
         onStop: async (path) => {
-            console.log('Recording saved locally to:', path);
+            console.log('Recording stopped. Temp file at:', path);
 
-            if (saveDestination === 'drive') {
-                const confirmUpload = confirm(`Recording saved locally. Upload to Google Drive?`);
-                if (confirmUpload) {
-                    setIsUploading(true);
-                    try {
-                        // We pass null for tokens as the backend manages the session in memory for now
-                        const result = await window.api.drive.upload(path, null) as any;
-                        if (result.success) {
-                            alert(`Successfully uploaded to Drive!\nLink: ${result.link}`);
-                            // TODO: Save metadata to SQLite if needed
-                        } else {
-                            alert(`Upload failed: ${result.error}`);
-                        }
-                    } catch (err: any) {
-                        alert(`Error uploading: ${err.message}`);
-                    } finally {
-                        setIsUploading(false);
+            // Calculate crop dimensions based on the player wrapper element
+            if (playerWrapperRef.current) {
+                const rect = playerWrapperRef.current.getBoundingClientRect();
+
+                // We need to account for the window's own UI if capturing whole window?
+                // The recording source 'desktop' usually captures the client area if we select the window?
+                // Or the whole screen depending on source.
+                // Assuming we capture the *window*, the 0,0 is the top-left of the webview logic usually.
+                // Let's rely on getBoundingClientRect() relative to the viewport.
+
+                // IMPORTANT: High DPI screens might need scaling. 
+                // devicePixelRatio usually handles this in browser, but FFmpeg filters work on pixels.
+                // We might need to multiply by window.devicePixelRatio?
+                // Let's try without first, as getDisplayMedia usually returns logical pixels or scaled?
+                // Actually, video dimensions match the stream resolution.
+
+                // Apply inset to remove borders (assuming ~2px border/shadow)
+                // Also ensure we stay within bounds
+                const INSET = 2; // Pixels to shave off edges
+
+                let cropX = Math.round(rect.x * window.devicePixelRatio) + INSET;
+                let cropY = Math.round(rect.y * window.devicePixelRatio) + INSET;
+                let cropW = Math.round(rect.width * window.devicePixelRatio) - (INSET * 2);
+                let cropH = Math.round(rect.height * window.devicePixelRatio) - (INSET * 2);
+
+                const crop = {
+                    x: cropX,
+                    y: cropY,
+                    width: cropW,
+                    height: cropH
+                };
+
+                // Ensure dimensions are even numbers (ffmpeg requirement often)
+                crop.width = Math.floor(crop.width / 2) * 2;
+                crop.height = Math.floor(crop.height / 2) * 2;
+                crop.x = Math.floor(crop.x / 2) * 2;
+                crop.y = Math.floor(crop.y / 2) * 2;
+
+                console.log('Applying crop:', crop);
+
+                setIsUploading(true); // Show some activity while cropping
+                try {
+                    const result = await window.api.recorder.cropVideo({ inputPath: path, crop });
+
+                    if (result.success && result.outputPath) {
+                        console.log('Crop successful:', result.outputPath);
+                        setCroppedFilePath(result.outputPath);
+                    } else {
+                        console.error('Crop failed:', result.error);
+                        // Optional: alert user or just fallback to original
                     }
+                } catch (error) {
+                    console.error('Error calling cropVideo:', error);
+                } finally {
+                    setIsUploading(false);
                 }
-            } else if (saveDestination === 'sqlite') {
-                // Trigger SQLite save (actually metadata save, file is already local)
-                // The backend recorder handler already does this if we pass saveToDb=true
-                // But our useRecorder hook just calls stopSave.
-                // We might need to handle this in stopRecording or here.
-                // For now, let's just alert.
-                alert(`Saved to Local. Metadata would be saved to SQLite.`);
-            } else {
-                alert(`Recording saved to: ${path}`);
             }
         }
     });
 
+    // Reset cropped path when recording starts
+    React.useEffect(() => {
+        if (isRecording) {
+            setCroppedFilePath(null);
+        }
+    }, [isRecording]);
+
+    const handleSaveRecording = async () => {
+        // Use cropped path if available, otherwise original
+        const path = croppedFilePath || currentFilePath;
+        if (!path) return;
+
+        setIsUploading(true);
+        try {
+            const result = await window.api.recorder.saveFile({
+                tempPath: path,
+                destination: saveDestination,
+                // userId: 1, // TODO: Get actual user ID
+                title: `Recording ${new Date().toLocaleString()}`,
+                sourceUrl: url
+            });
+
+            if (result.success) {
+                alert(`Saved successfully to: ${saveDestination === 'drive' ? 'Google Drive' : result.filePath}`);
+                // Cleanup both files if needed
+                if (croppedFilePath && currentFilePath && croppedFilePath !== path) {
+                    await discardRecording(); // cleans currentFilePath
+                    await window.api.recorder.deleteTempFile(croppedFilePath);
+                } else {
+                    await discardRecording();
+                }
+                setCroppedFilePath(null);
+            } else {
+                alert(`Save failed: ${result.error}`);
+            }
+        } catch (err: any) {
+            alert(`Error saving: ${err.message}`);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleDiscard = async () => {
+        if (confirm("Sigur doriți să renunțați la înregistrare?")) {
+            await discardRecording();
+            if (croppedFilePath) {
+                await window.api.recorder.deleteTempFile(croppedFilePath);
+                setCroppedFilePath(null);
+            }
+        }
+    };
+
     // --- Sync Logic ---
 
-    const handleVideoPause = () => {
+    // Wait, we need to access isRecording. 
+    // If we use empty dependency [], we capture initial state (false).
+    // We need a ref to track recording state without triggering re-renders of callbacks.
+    const recordingStateRef = useRef({ isRecording: false, isPaused: false });
+
+    // Update ref when state changes
+    React.useEffect(() => {
+        recordingStateRef.current = { isRecording, isPaused };
+    }, [isRecording, isPaused]);
+
+    const handleVideoPauseCallback = React.useCallback(() => {
         console.log('Video Paused');
+        const { isRecording, isPaused } = recordingStateRef.current;
         if (isRecording && !isPaused) {
             console.log('-> Auto-pausing Recording');
             pauseRecording();
         }
-    };
+    }, [pauseRecording]); // pauseRecording from hook might strictly be stable? Let's hope.
 
-    const handleVideoPlay = () => {
+    const handleVideoPlayCallback = React.useCallback(() => {
         console.log('Video Playing');
-    };
+    }, []);
 
     const handleResumeRecording = () => {
         resumeRecording();
-        // Auto-play video if it was paused
         playerRef.current?.play();
     };
 
@@ -86,8 +186,9 @@ const Dashboard = () => {
 
             {/* Debug Monitor */}
             <div className="mb-4 p-2 bg-gray-800 rounded border border-gray-700 font-mono text-xs">
-                <p>API Status: <span className={window.api ? "text-green-500" : "text-red-500"}>{window.api ? "CONNECTED" : "DISCONNECTED (Preload Failed)"}</span></p>
-                <p>Preload Path: {window.api ? "Loaded" : "Not Loaded"}</p>
+                <p>API Status: <span className={window.api ? "text-green-500" : "text-red-500"}>{window.api ? "CONNECTED" : "DISCONNECTED"}</span></p>
+                <p>Path: {currentFilePath || "None"}</p>
+                {croppedFilePath && <p>Cropped Path: {croppedFilePath}</p>}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
@@ -100,53 +201,74 @@ const Dashboard = () => {
                             placeholder="Paste Youtube URL here..."
                             value={inputUrl}
                             onChange={(e) => setInputUrl(e.target.value)}
+                            disabled={isRecording || !!currentFilePath}
                         />
                         <button
                             onClick={handleConnect}
                             className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-medium transition-colors"
+                            disabled={isRecording || !!currentFilePath}
                         >
                             Connect
                         </button>
                         <button
                             onClick={() => setUrl('https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4')}
                             className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-medium transition-colors"
+                            disabled={isRecording || !!currentFilePath}
                         >
                             Test MP4
                         </button>
                         <button
-                            onClick={() => {
-                                // Assuming we can access the ref via context or pass a callback, but specific to this component structure:
-                                // Since ref is not directly accessible here easily without Context, let's keep it simple for now and rely on ReactPlayer behavior first.
-                                // Actually, let's just use console log for now or force a specific URL known to work.
-                                // Or better, let's use a known working YouTube video ID directly in the StreamPlayer component logic for testing.
-                                setUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ'); // Rick Roll always works?
-                            }}
+                            onClick={() => setUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')}
                             className="bg-yellow-600 hover:bg-yellow-700 px-6 py-2 rounded-lg font-medium transition-colors"
+                            disabled={isRecording || !!currentFilePath}
                         >
                             Test YT
                         </button>
                         <button
-                            onClick={() => playerRef.current?.toggleRawYoutube?.()}
+                            onClick={() => {
+                                setShowRawYoutube(prev => !prev);
+                            }}
                             className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-medium transition-colors"
+                            disabled={isRecording || !!currentFilePath}
                         >
-                            Load
+                            {showRawYoutube ? 'Show Player' : 'Load Iframe'}
                         </button>
                     </div>
 
-                    <div className="bg-black rounded-xl border border-gray-800 flex-1 overflow-hidden relative">
-                        {url ? (
-                            <StreamPlayer
-                                key={url}
-                                ref={playerRef}
-                                url={url}
-                                onPause={handleVideoPause}
-                                onPlay={handleVideoPlay}
-                            />
-                        ) : (
-                            <div className="flex items-center justify-center h-full text-gray-500">
-                                No stream connected
-                            </div>
-                        )}
+                    <div className="bg-black/20 rounded-xl border border-gray-800 flex-1 flex items-center justify-center overflow-hidden relative">
+                        {/* Enforce 16:9 Aspect Ratio Container for the Player */}
+                        <div
+                            ref={playerWrapperRef}
+                            className="w-full max-w-full aspect-video bg-black relative shadow-2xl"
+                        >
+                            {/* PREVIEW MODE */}
+                            {!isRecording && currentFilePath ? (
+                                <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 border-2 border-yellow-500/50 relative p-4">
+                                    <div className="absolute top-4 left-4 bg-yellow-600 text-white text-xs px-2 py-1 rounded font-bold uppercase tracking-wider z-10">
+                                        Preview Mode {croppedFilePath ? '(Cropped)' : ''}
+                                    </div>
+                                    <video
+                                        src={`file://${croppedFilePath || currentFilePath}`}
+                                        controls
+                                        className="w-full h-full object-contain"
+                                    />
+                                    <p className="text-gray-400 text-sm mt-2">Review your recording before saving.</p>
+                                </div>
+                            ) : url ? (
+                                <StreamPlayer
+                                    key={url}
+                                    ref={playerRef}
+                                    url={url}
+                                    showRawYoutube={showRawYoutube}
+                                    onPause={handleVideoPauseCallback}
+                                    onPlay={handleVideoPlayCallback}
+                                />
+                            ) : (
+                                <div className="flex items-center justify-center h-full text-gray-500">
+                                    No stream connected
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -155,16 +277,20 @@ const Dashboard = () => {
                     <h3 className="text-xl font-semibold mb-6">Controls</h3>
 
                     <div className="space-y-4">
-                        {!isRecording ? (
+                        {/* 1. IDLE / READY state */}
+                        {!isRecording && !currentFilePath && (
                             <button
                                 onClick={startRecording}
                                 className={`w-full py-4 rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-2 ${!url ? 'bg-gray-700 cursor-not-allowed text-gray-400' : 'bg-red-600 hover:bg-red-700 text-white'}`}
                                 disabled={!url || isUploading}
                             >
                                 <div className={`w-4 h-4 rounded-full ${!url ? 'bg-gray-500' : 'bg-white animate-pulse'}`} />
-                                {isUploading ? 'Uploading...' : 'Start Recording'}
+                                Start Recording
                             </button>
-                        ) : (
+                        )}
+
+                        {/* 2. RECORDING state */}
+                        {isRecording && (
                             <div className="space-y-4">
                                 <div className="bg-red-900/30 border border-red-900 rounded-lg p-4 text-center animate-pulse">
                                     <span className="text-red-400 font-mono text-xl">{recordingTime}</span>
@@ -173,45 +299,72 @@ const Dashboard = () => {
 
                                 <div className="grid grid-cols-2 gap-4">
                                     {isPaused ? (
-                                        <button
-                                            onClick={handleResumeRecording}
-                                            className="py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors"
-                                        >
+                                        <button onClick={handleResumeRecording} className="py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors">
                                             Resume Rec
                                         </button>
                                     ) : (
-                                        <button
-                                            onClick={pauseRecording}
-                                            className="py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-medium transition-colors"
-                                        >
+                                        <button onClick={pauseRecording} className="py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-medium transition-colors">
                                             Pause Rec
                                         </button>
                                     )}
-                                    <button
-                                        onClick={stopRecording}
-                                        className="py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors"
-                                    >
+                                    <button onClick={stopRecording} className="py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors">
                                         Stop Rec
                                     </button>
                                 </div>
                             </div>
                         )}
 
-                        <hr className="border-gray-800 my-6" />
+                        {/* 3. PREVIEW / SAVE state */}
+                        {!isRecording && currentFilePath && (
+                            <div className="space-y-4 animate-fade-in">
+                                <label className="text-sm text-gray-400 block mb-2">Recording Finished</label>
 
-                        <div className="space-y-2">
-                            <label className="text-sm text-gray-400">Save Destination</label>
-                            <select
-                                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none"
-                                value={saveDestination}
-                                onChange={(e) => setSaveDestination(e.target.value)}
-                                disabled={isRecording || isUploading}
-                            >
-                                <option value="local">Local Computer</option>
-                                <option value="sqlite">Database (SQLite)</option>
-                                <option value="drive">Google Drive</option>
-                            </select>
-                        </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleDiscard}
+                                        className="flex-1 py-3 bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                                        title="Discard Recording"
+                                    >
+                                        🗑️ Discard
+                                    </button>
+
+                                    <button
+                                        onClick={handleSaveRecording}
+                                        className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
+                                        disabled={isUploading}
+                                    >
+                                        {isUploading ? 'Saving...' : '💾 Save Recording'}
+                                    </button>
+                                </div>
+
+                                <hr className="border-gray-800 my-4" />
+
+                                <div className="space-y-2">
+                                    <label className="text-sm text-gray-400">Save Destination</label>
+                                    <select
+                                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none"
+                                        value={saveDestination}
+                                        onChange={(e) => setSaveDestination(e.target.value)}
+                                        disabled={isUploading}
+                                    >
+                                        <option value="local">Local Computer</option>
+                                        <option value="sqlite">Database (SQLite)</option>
+                                        <option value="drive">Google Drive</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Placeholder for when no action is active, just to keep layout consistent if needed */}
+                        {!isRecording && !currentFilePath && (
+                            <div className="space-y-2 opacity-50">
+                                <label className="text-sm text-gray-400">Save Destination (Inactive)</label>
+                                <select className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2" disabled>
+                                    <option>Local Computer</option>
+                                </select>
+                            </div>
+                        )}
+
                     </div>
                 </div>
             </div>

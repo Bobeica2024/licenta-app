@@ -5,26 +5,30 @@ interface StreamPlayerProps {
     url: string;
     onPlay?: () => void;
     onPause?: () => void;
+    showRawYoutube?: boolean;
+    // toggleRawYoutube no longer needed in props if controlled by parent, 
+    // but we might want to keep the imperative handle or just control it via props.
+    // Let's control it via props completely.
 }
 
 export interface StreamPlayerRef {
     play: () => void;
     pause: () => void;
-    toggleRawYoutube?: () => void;
+    // toggleRawYoutube removed from ref, controlled by prop
 }
 
-const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPlay, onPause }, ref) => {
+const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPlay, onPause, showRawYoutube }, ref) => {
     const [playing, setPlaying] = useState(true);
     // Use any to bypass strict type checking for the library ref if needed
     const playerRef = useRef<any>(null);
-    const [showRawYoutube, setShowRawYoutube] = useState(false);
+    // const [showRawYoutube, setShowRawYoutube] = useState(false); // LIFTED
 
     const [error, setError] = useState<string | null>(null);
 
     useImperativeHandle(ref, () => ({
         play: () => setPlaying(true),
         pause: () => setPlaying(false),
-        toggleRawYoutube: () => setShowRawYoutube(prev => !prev) // Expose toggle for testing
+        // toggleRawYoutube: ... removed
     }));
 
     return (
@@ -77,7 +81,10 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
                             playerVars: {
                                 origin: window.location.origin, // Reset to standard behavior first
                                 modestbranding: 1,
-                                rel: 0
+                                rel: 0,
+                                iv_load_policy: 3, // Hide annotations
+                                fs: 0, // Disable fullscreen button
+                                disablekb: 1 // Disable keyboard controls (optional, cleaner)
                             }
                         }
                     }}
@@ -102,4 +109,4 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
     );
 });
 
-export default StreamPlayer;
+export default React.memo(StreamPlayer);

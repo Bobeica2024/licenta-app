@@ -21,83 +21,92 @@ export const useRecorder = ({ onStop }: UseRecorderProps = {}) => {
 
     const startRecording = async () => {
         try {
-            // 1. Get Sources (For now, just pick the first screen/window or ask user)
-            // Ideally, show a modal. For simplicity, we'll ask user permissions via standard API
-            // But in Electron, we need desktopCapturer sourceId.
+            setIsRecording(true); // Set buffering/loading state immediately to prevent UI glitches
 
-            const sources = await window.api.recorder.getSources();
-            // Select the first source (usually entire screen) or find the app window
-            // For this demo, let's grab the first source. 
-            // TODO: Add source selection UI
-            const sourceId = sources[0].id;
+            // 1. Get Sources
+            try {
+                const sources = await window.api.recorder.getSources();
+                const sourceId = sources[0].id; // TODO: Better source selection if needed
 
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    mandatory: {
-                        chromeMediaSource: 'desktop' // This captures system audio on Windows with Electron
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        mandatory: {
+                            chromeMediaSource: 'desktop'
+                        }
+                    } as any,
+                    video: {
+                        mandatory: {
+                            chromeMediaSource: 'desktop',
+                            chromeMediaSourceId: sourceId
+                        }
+                    } as any
+                });
+
+                // 2. Get Temp Path (No Save As Dialog)
+                const tempPath = await window.api.recorder.getTempPath();
+                if (!tempPath) throw new Error("Could not generate temp path");
+                setFilePath(tempPath);
+
+                // 3. Initialize Recorder
+                const recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+                mediaRecorderRef.current = recorder;
+
+                // 4. Setup Event Handlers
+                recorder.ondataavailable = async (e) => {
+                    if (e.data.size > 0) {
+                        const buffer = await e.data.arrayBuffer();
+                        await window.api.recorder.writeChunk(tempPath, buffer);
                     }
-                } as any, // Type cast for custom constraint
-                video: {
-                    mandatory: {
-                        chromeMediaSource: 'desktop',
-                        chromeMediaSourceId: sourceId
-                    }
-                } as any
-            });
+                };
 
-            // 2. Select Save Path
-            const path = await window.api.recorder.selectPath();
-            if (!path) return; // User cancelled
-            setFilePath(path);
+                recorder.onstop = () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    setIsRecording(false);
+                    setIsPaused(false);
+                    if (timerRef.current) clearInterval(timerRef.current);
 
-            // 3. Initialize Recorder
-            const recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
-            mediaRecorderRef.current = recorder;
+                    // Finalize the file, then callback
+                    window.api.recorder.stopSave({ filePath: tempPath }).then(() => {
+                        onStop?.(tempPath);
+                    });
+                };
 
-            // 4. Setup Event Handlers
-            recorder.ondataavailable = async (e) => {
-                if (e.data.size > 0) {
-                    const buffer = await e.data.arrayBuffer();
-                    await window.api.recorder.writeChunk(path, buffer);
-                }
-            };
+                // 5. Start
+                await window.api.recorder.startSave(tempPath);
+                recorder.start(1000); // 1s chunks
+                // setIsRecording(true); // Moved to top
 
-            recorder.onstop = () => {
-                stream.getTracks().forEach(track => track.stop());
-                setIsRecording(false);
-                setIsPaused(false);
-                if (timerRef.current) clearInterval(timerRef.current);
-                onStop?.(path);
-            };
+                // Timer
+                setRecordingTime(0);
+                timerRef.current = setInterval(() => {
+                    setRecordingTime(prev => prev + 1);
+                }, 1000);
 
-            // 5. Start
-            await window.api.recorder.startSave(path);
-            recorder.start(1000); // 1s chunks
-            setIsRecording(true);
-
-            // Timer
-            setRecordingTime(0);
-            timerRef.current = setInterval(() => {
-                setRecordingTime(prev => prev + 1);
-            }, 1000);
+            } catch (err: any) {
+                console.error('Failed to get sources or start stream:', err);
+                alert('Recording Error: ' + err.message);
+                setIsRecording(false); // Reset on internal error
+                setFilePath(null);
+            }
 
         } catch (err) {
             console.error('Failed to start recording:', err);
             alert('Failed to start recording: ' + err);
+            setIsRecording(false); // Reset on outer error
+            setFilePath(null);
         }
     };
 
     const stopRecording = () => {
         if (mediaRecorderRef.current && isRecording) {
             mediaRecorderRef.current.stop();
-            // Logic to finalize file is called in onstop
-            // We also need to notify backend to close stream
-            if (filePath) {
-                window.api.recorder.stopSave({
-                    filePath,
-                    // User ID and meta data should be passed here, handled by Dashboard
-                });
-            }
+        }
+    };
+
+    const discardRecording = async () => {
+        if (filePath) {
+            await window.api.recorder.deleteTempFile(filePath);
+            setFilePath(null);
         }
     };
 
@@ -132,7 +141,9 @@ export const useRecorder = ({ onStop }: UseRecorderProps = {}) => {
         recordingTime: formatTime(recordingTime),
         startRecording,
         stopRecording,
+        discardRecording,
         pauseRecording,
-        resumeRecording
+        resumeRecording,
+        currentFilePath: filePath
     };
 };

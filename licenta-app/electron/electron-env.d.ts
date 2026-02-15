@@ -22,6 +22,31 @@ declare namespace NodeJS {
 }
 
 // Used in Renderer process, expose in `preload.ts`
+// Used in Renderer process, expose in `preload.ts`
 interface Window {
-  ipcRenderer: import('electron').IpcRenderer
+  ipcRenderer: import('electron').IpcRenderer;
+  api: {
+    auth: {
+      login: (credentials: any) => Promise<any>;
+      register: (details: any) => Promise<any>;
+      getHint: (username: string) => Promise<any>;
+    };
+    recorder: {
+      getSources: () => Promise<any[]>;
+      selectPath: () => Promise<string>;
+      getTempPath: () => Promise<string>;
+      startSave: (filePath: string) => Promise<any>;
+      writeChunk: (filePath: string, chunk: ArrayBuffer) => Promise<any>;
+      stopSave: (data: any) => Promise<any>;
+      cropVideo: (data: { inputPath: string, crop: { x: number, y: number, width: number, height: number } }) => Promise<{ success: boolean, outputPath?: string, error?: string }>;
+      deleteTempFile: (filePath: string) => Promise<any>;
+      saveFile: (data: { tempPath: string, destination: string, userId?: number, title?: string, sourceUrl?: string }) => Promise<{ success: boolean, filePath?: string, error?: string }>;
+    };
+    drive: {
+      authenticate: () => Promise<any>;
+      upload: (filePath: string, tokens: any) => Promise<any>;
+      logout: () => Promise<any>;
+      getSession: () => Promise<any>;
+    };
+  };
 }

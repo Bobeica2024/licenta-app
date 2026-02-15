@@ -29,10 +29,14 @@ try {
     },
     recorder: {
       getSources: () => electron.ipcRenderer.invoke("recorder:get-sources"),
-      selectPath: () => electron.ipcRenderer.invoke("recorder:select-path"),
+      // selectPath: () => ipcRenderer.invoke('recorder:select-path'), // Deprecated
+      getTempPath: () => electron.ipcRenderer.invoke("recorder:get-temp-path"),
       startSave: (filePath) => electron.ipcRenderer.invoke("recorder:start-save", filePath),
       writeChunk: (filePath, chunk) => electron.ipcRenderer.invoke("recorder:write-chunk", { filePath, chunk }),
-      stopSave: (data) => electron.ipcRenderer.invoke("recorder:stop-save", data)
+      stopSave: (data) => electron.ipcRenderer.invoke("recorder:stop-save", data),
+      cropVideo: (data) => electron.ipcRenderer.invoke("recorder:crop-video", data),
+      deleteTempFile: (filePath) => electron.ipcRenderer.invoke("recorder:delete-temp-file", filePath),
+      saveFile: (data) => electron.ipcRenderer.invoke("recorder:save-file", data)
     },
     drive: {
       authenticate: () => electron.ipcRenderer.invoke("drive:authenticate"),

@@ -2,13 +2,15 @@ import { app, ipcMain, dialog, shell, BrowserWindow } from "electron";
 import Database from "better-sqlite3";
 import path from "path";
 import nodeCrypto from "crypto";
-import require$$0 from "fs";
+import fs from "fs";
+import ffmpeg from "fluent-ffmpeg";
+import ffmpegPath from "ffmpeg-static";
 import http from "http";
 import url from "url";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path$1 from "node:path";
-import fs from "node:fs";
+import fs$1 from "node:fs";
 const dbPath = path.join(app.getPath("userData"), "database.sqlite");
 const db = new Database(dbPath);
 db.exec(`
@@ -1807,7 +1809,7 @@ function setupRecorderHandlers() {
   });
   ipcMain.handle("recorder:start-save", async (_, filePath) => {
     try {
-      const stream = require$$0.createWriteStream(filePath);
+      const stream = fs.createWriteStream(filePath);
       writeStreams[filePath] = stream;
       return { success: true };
     } catch (err) {
@@ -1849,6 +1851,84 @@ function setupRecorderHandlers() {
       thumbnail: source.thumbnail.toDataURL()
     }));
   });
+  ipcMain.handle("recorder:get-temp-path", async () => {
+    const tempPath = path.join(app.getPath("temp"), `recording-${Date.now()}.webm`);
+    return tempPath;
+  });
+  ipcMain.handle("recorder:crop-video", async (_, { inputPath, crop }) => {
+    if (ffmpegPath) {
+      ffmpeg.setFfmpegPath(ffmpegPath);
+    } else {
+      console.error("FFmpeg path is null!");
+      return { success: false, error: "FFmpeg binary not found" };
+    }
+    const outputPath = inputPath.replace(".webm", "-cropped.webm");
+    return new Promise((resolve) => {
+      const w = Math.floor(crop.width);
+      const h = Math.floor(crop.height);
+      const x = Math.floor(crop.x);
+      const y = Math.floor(crop.y);
+      console.log(`Starting FFmpeg crop: ${w}x${h} at ${x},${y}`);
+      ffmpeg(inputPath).videoFilters(`crop=${w}:${h}:${x}:${y}`).output(outputPath).on("end", () => {
+        console.log("FFmpeg crop finished:", outputPath);
+        resolve({ success: true, outputPath });
+      }).on("error", (err) => {
+        console.error("FFmpeg Error:", err);
+        resolve({ success: false, error: err.message });
+      }).run();
+    });
+  });
+  ipcMain.handle("recorder:delete-temp-file", async (_, filePath) => {
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  });
+  ipcMain.handle("recorder:save-file", async (_, { tempPath, destination, userId, title, sourceUrl }) => {
+    try {
+      if (!fs.existsSync(tempPath)) {
+        return { success: false, error: "Temp file not found" };
+      }
+      let finalPath = "";
+      if (destination === "local") {
+        const { filePath } = await dialog.showSaveDialog({
+          buttonLabel: "Save Recording",
+          defaultPath: `recording-${Date.now()}.webm`,
+          filters: [{ name: "WebM Video", extensions: ["webm"] }]
+        });
+        if (!filePath) return { success: false, error: "Cancelled" };
+        finalPath = filePath;
+        fs.copyFileSync(tempPath, finalPath);
+      } else if (destination === "drive") {
+        return { success: true, filePath: tempPath };
+      } else {
+        const docsPath = app.getPath("documents");
+        const recordingsDir = path.join(docsPath, "LicentaApp_Recordings");
+        if (!fs.existsSync(recordingsDir)) fs.mkdirSync(recordingsDir);
+        finalPath = path.join(recordingsDir, path.basename(tempPath));
+        fs.copyFileSync(tempPath, finalPath);
+      }
+      if (finalPath && finalPath !== tempPath) {
+        fs.unlinkSync(tempPath);
+      }
+      if (userId) {
+        try {
+          const stmt = db.prepare("INSERT INTO fragments (user_id, title, source_url, file_path) VALUES (?, ?, ?, ?)");
+          stmt.run(userId, title || "Untitled Recording", sourceUrl || "", finalPath || tempPath);
+        } catch (dbErr) {
+          console.error("DB Insert Error:", dbErr);
+        }
+      }
+      return { success: true, filePath: finalPath };
+    } catch (err) {
+      console.error("Save File Error:", err);
+      return { success: false, error: err.message };
+    }
+  });
 }
 const CLIENT_ID = "YOUR_CLIENT_ID";
 const CLIENT_SECRET = "YOUR_CLIENT_SECRET";
@@ -1862,7 +1942,7 @@ function setupDriveHandlers() {
   });
   ipcMain.handle("drive:authenticate", async () => {
     return new Promise(async (resolve) => {
-      const { OAuth2Client } = await import("./index-Bje5-8BG.js").then((n) => n.i);
+      const { OAuth2Client } = await import("./index-BjeAp9vM.js").then((n) => n.i);
       oAuth2Client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
       const authorizeUrl = oAuth2Client.generateAuthUrl({
         access_type: "offline",
@@ -1918,7 +1998,7 @@ function setupDriveHandlers() {
         tokens = currentTokens;
       }
       if (!oAuth2Client) {
-        const { OAuth2Client } = await import("./index-Bje5-8BG.js").then((n) => n.i);
+        const { OAuth2Client } = await import("./index-BjeAp9vM.js").then((n) => n.i);
         oAuth2Client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
       }
       oAuth2Client.setCredentials(tokens);
@@ -1931,7 +2011,7 @@ function setupDriveHandlers() {
         },
         media: {
           mimeType: "video/webm",
-          body: require$$0.createReadStream(filePath)
+          body: fs.createReadStream(filePath)
         },
         fields: "id, webViewLink, name"
       });
@@ -1960,11 +2040,11 @@ function createWindow() {
   console.log("--- PATH DEBUGGING ---");
   console.log("App Path:", appPath);
   console.log("__dirname:", __dirname$1);
-  console.log("Preload (ref):", preloadPathRef, "| Exists:", fs.existsSync(preloadPathRef));
-  console.log("Preload (root):", preloadPathRoot, "| Exists:", fs.existsSync(preloadPathRoot));
+  console.log("Preload (ref):", preloadPathRef, "| Exists:", fs$1.existsSync(preloadPathRef));
+  console.log("Preload (root):", preloadPathRoot, "| Exists:", fs$1.existsSync(preloadPathRoot));
   console.log("----------------------");
   const finalPreload = path$1.join(appPath, "dist-electron", "preload.cjs");
-  const preloadExists = fs.existsSync(finalPreload);
+  const preloadExists = fs$1.existsSync(finalPreload);
   console.log("Final Preload Path used:", finalPreload, "| Exists:", preloadExists);
   win = new BrowserWindow({
     icon: path$1.join(process.env.VITE_PUBLIC, "electron-vite.svg"),

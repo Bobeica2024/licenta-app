@@ -17,7 +17,7 @@ export default defineConfig({
         vite: {
           build: {
             rollupOptions: {
-              external: ['googleapis', 'better-sqlite3'],
+              external: ['googleapis', 'better-sqlite3', 'fluent-ffmpeg', 'ffmpeg-static'],
             },
             commonjsOptions: {
               ignoreDynamicRequires: true,
