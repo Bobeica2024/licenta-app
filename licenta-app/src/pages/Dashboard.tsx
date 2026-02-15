@@ -129,7 +129,7 @@ const Dashboard = () => {
                             onClick={() => playerRef.current?.toggleRawYoutube?.()}
                             className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-medium transition-colors"
                         >
-                            Toggle Iframe
+                            Load
                         </button>
                     </div>
 

@@ -10,6 +10,7 @@ interface StreamPlayerProps {
 export interface StreamPlayerRef {
     play: () => void;
     pause: () => void;
+    toggleRawYoutube?: () => void;
 }
 
 const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPlay, onPause }, ref) => {
@@ -37,16 +38,16 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
                 </div>
             )}
             {showRawYoutube ? (
-                <div style={{ padding: 20, background: 'blue' }}>
-                    <p style={{ color: 'white' }}>Raw YouTube Iframe Test</p>
+                <div className="w-full h-full bg-black">
                     <iframe
                         width="100%"
-                        height="300"
+                        height="100%"
                         src={`https://www.youtube.com/embed/${url.includes('v=') ? url.split('v=')[1] : ''}`}
                         title="YouTube video player"
                         frameBorder="0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowFullScreen
+                        className="w-full h-full"
                     ></iframe>
                 </div>
             ) : url.endsWith('.mp4') ? (
