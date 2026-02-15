@@ -34,13 +34,44 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 
 let win: BrowserWindow | null
 
+import fs from 'node:fs'; // Import fs for checking file existence
+
 function createWindow() {
+  // Debug paths
+  const appPath = app.getAppPath();
+  const preloadPathRef = path.join(__dirname, 'preload.cjs');
+  const preloadPathRoot = path.join(appPath, 'dist-electron', 'preload.cjs');
+
+  console.log('--- PATH DEBUGGING ---');
+  console.log('App Path:', appPath);
+  console.log('__dirname:', __dirname);
+  console.log('Preload (ref):', preloadPathRef, '| Exists:', fs.existsSync(preloadPathRef));
+  console.log('Preload (root):', preloadPathRoot, '| Exists:', fs.existsSync(preloadPathRoot));
+  console.log('----------------------');
+
+  // const finalPreload = fs.existsSync(preloadPathRef) ? preloadPathRef : preloadPathRoot;
+  const finalPreload = path.join(appPath, 'dist-electron', 'debug-preload.cjs'); // FORCE DEBUG PRELOAD CJS
+
+  const preloadExists = fs.existsSync(finalPreload);
+  console.log('Final Preload Path used:', finalPreload, '| Exists:', preloadExists);
+
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
+      preload: finalPreload,
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false,
     },
   })
+
+  win.webContents.on('preload-error', (event, preloadPath, error) => {
+    console.error('!!! PRELOAD ERROR DETECTED !!!');
+    console.error('Path:', preloadPath);
+    console.error('Error:', error);
+  });
+
+  console.log('Final Preload Path used:', finalPreload);
 
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {

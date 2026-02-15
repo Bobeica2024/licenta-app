@@ -1,5 +1,7 @@
 "use strict";
 const electron = require("electron");
+console.log("Preload script loaded!");
+console.log("ipcRenderer available:", !!electron.ipcRenderer);
 electron.contextBridge.exposeInMainWorld("ipcRenderer", {
   on(...args) {
     const [channel, listener] = args;

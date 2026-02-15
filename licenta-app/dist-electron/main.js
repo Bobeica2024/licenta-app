@@ -8,6 +8,7 @@ import url from "url";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path$1 from "node:path";
+import fs from "node:fs";
 const dbPath = path.join(app.getPath("userData"), "database.sqlite");
 const db = new Database(dbPath);
 db.exec(`
@@ -1953,12 +1954,33 @@ const RENDERER_DIST = path$1.join(process.env.APP_ROOT, "dist");
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path$1.join(process.env.APP_ROOT, "public") : RENDERER_DIST;
 let win;
 function createWindow() {
+  const appPath = app.getAppPath();
+  const preloadPathRef = path$1.join(__dirname$1, "preload.cjs");
+  const preloadPathRoot = path$1.join(appPath, "dist-electron", "preload.cjs");
+  console.log("--- PATH DEBUGGING ---");
+  console.log("App Path:", appPath);
+  console.log("__dirname:", __dirname$1);
+  console.log("Preload (ref):", preloadPathRef, "| Exists:", fs.existsSync(preloadPathRef));
+  console.log("Preload (root):", preloadPathRoot, "| Exists:", fs.existsSync(preloadPathRoot));
+  console.log("----------------------");
+  const finalPreload = path$1.join(appPath, "dist-electron", "debug-preload.cjs");
+  const preloadExists = fs.existsSync(finalPreload);
+  console.log("Final Preload Path used:", finalPreload, "| Exists:", preloadExists);
   win = new BrowserWindow({
     icon: path$1.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     webPreferences: {
-      preload: path$1.join(__dirname$1, "preload.mjs")
+      preload: finalPreload,
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   });
+  win.webContents.on("preload-error", (event, preloadPath, error) => {
+    console.error("!!! PRELOAD ERROR DETECTED !!!");
+    console.error("Path:", preloadPath);
+    console.error("Error:", error);
+  });
+  console.log("Final Preload Path used:", finalPreload);
   win.webContents.on("did-finish-load", () => {
     win == null ? void 0 : win.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
   });

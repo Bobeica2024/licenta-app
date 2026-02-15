@@ -28,7 +28,7 @@ const Dashboard = () => {
                     setIsUploading(true);
                     try {
                         // We pass null for tokens as the backend manages the session in memory for now
-                        const result = await window.api.drive.upload(path, null);
+                        const result = await window.api.drive.upload(path, null) as any;
                         if (result.success) {
                             alert(`Successfully uploaded to Drive!\nLink: ${result.link}`);
                             // TODO: Save metadata to SQLite if needed
@@ -83,6 +83,12 @@ const Dashboard = () => {
     return (
         <div className="flex-1 p-8 bg-gray-950 text-white overflow-auto">
             <h2 className="text-3xl font-bold mb-6">Dashboard</h2>
+
+            {/* Debug Monitor */}
+            <div className="mb-4 p-2 bg-gray-800 rounded border border-gray-700 font-mono text-xs">
+                <p>API Status: <span className={window.api ? "text-green-500" : "text-red-500"}>{window.api ? "CONNECTED" : "DISCONNECTED (Preload Failed)"}</span></p>
+                <p>Preload Path: {window.api ? "Loaded" : "Not Loaded"}</p>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
                 {/* Stream Area */}
