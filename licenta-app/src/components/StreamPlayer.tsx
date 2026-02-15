@@ -34,30 +34,39 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
                     </div>
                 </div>
             )}
-            <ReactPlayer
-                ref={playerRef}
-                url={url}
-                width="100%"
-                height="100%"
-                playing={playing}
-                controls={true}
-                muted={true} // Mute by default to allow autoplay
-                onReady={() => console.log('StreamPlayer: Ready')}
-                onStart={() => console.log('StreamPlayer: Started')}
-                onBuffer={() => console.log('StreamPlayer: Buffering')}
-                onError={(e) => {
-                    console.error('StreamPlayer Error:', e);
-                    setError("Failed to load video. Please check URL or connection.");
-                }}
-                onPlay={() => {
-                    setPlaying(true);
-                    onPlay?.();
-                }}
-                onPause={() => {
-                    setPlaying(false);
-                    onPause?.();
-                }}
-            />
+            {url.endsWith('.mp4') ? (
+                <div style={{ padding: 20, background: 'red' }}>
+                    <p style={{ color: 'white' }}>Raw Video Tag Test</p>
+                    <video
+                        src={url}
+                        controls
+                        autoPlay
+                        style={{ width: '100%', height: '300px', background: 'black' }}
+                        onPlay={() => console.log("RAW VIDEO PLAYING")}
+                        onError={(e) => console.error("RAW VIDEO ERROR", e)}
+                    />
+                </div>
+            ) : (
+                <ReactPlayer
+                    key={url} // Force remount when URL changes
+                    ref={playerRef}
+                    url={url}
+                    width="100%"
+                    height="100%"
+                    playing={playing}
+                    controls={true}
+                    muted={true} // Mute by default to allow autoplay
+                    config={{
+                        youtube: {
+                            playerVars: {
+                                origin: window.location.origin,
+                                modestbranding: 1,
+                                rel: 0
+                            }
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 });

@@ -50,7 +50,8 @@ function createWindow() {
   console.log('----------------------');
 
   // const finalPreload = fs.existsSync(preloadPathRef) ? preloadPathRef : preloadPathRoot;
-  const finalPreload = path.join(appPath, 'dist-electron', 'debug-preload.cjs'); // FORCE DEBUG PRELOAD CJS
+  // FORCE CJS: The preload script MUST be loaded as .cjs because the project is ESM but preload requires CommonJS context
+  const finalPreload = path.join(appPath, 'dist-electron', 'preload.cjs');
 
   const preloadExists = fs.existsSync(finalPreload);
   console.log('Final Preload Path used:', finalPreload, '| Exists:', preloadExists);
@@ -104,4 +105,35 @@ app.on('activate', () => {
   }
 })
 
-app.whenReady().then(createWindow)
+// Force autoplay to work without interaction
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+// Fix for black screen on some Windows systems (forces software rendering)
+app.disableHardwareAcceleration();
+
+app.whenReady().then(() => {
+  // Intercept requests to YouTube to fake the Referer header
+  // This tricks YouTube into thinking the request comes from YouTube itself or a valid browser
+  const { session } = require('electron');
+
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['*://*.youtube.com/*', '*://*.googlevideo.com/*'] },
+    (details: any, callback: any) => {
+      details.requestHeaders['Referer'] = 'https://www.youtube.com/';
+      callback({ cancel: false, requestHeaders: details.requestHeaders });
+    }
+  );
+
+  // Allow YouTube to work by adjusting CSP
+  session.defaultSession.webRequest.onHeadersReceived((details: any, callback: any) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *; media-src * blob:; frame-src *;"
+        ]
+      }
+    })
+  });
+
+  createWindow();
+})

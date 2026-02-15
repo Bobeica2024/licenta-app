@@ -1945,7 +1945,7 @@ function setupDriveHandlers() {
 setupAuthHandlers();
 setupRecorderHandlers();
 setupDriveHandlers();
-createRequire(import.meta.url);
+const require$1 = createRequire(import.meta.url);
 const __dirname$1 = path$1.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path$1.join(__dirname$1, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
@@ -1963,7 +1963,7 @@ function createWindow() {
   console.log("Preload (ref):", preloadPathRef, "| Exists:", fs.existsSync(preloadPathRef));
   console.log("Preload (root):", preloadPathRoot, "| Exists:", fs.existsSync(preloadPathRoot));
   console.log("----------------------");
-  const finalPreload = path$1.join(appPath, "dist-electron", "debug-preload.cjs");
+  const finalPreload = path$1.join(appPath, "dist-electron", "preload.cjs");
   const preloadExists = fs.existsSync(finalPreload);
   console.log("Final Preload Path used:", finalPreload, "| Exists:", preloadExists);
   win = new BrowserWindow({
@@ -2001,7 +2001,29 @@ app.on("activate", () => {
     createWindow();
   }
 });
-app.whenReady().then(createWindow);
+app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
+app.disableHardwareAcceleration();
+app.whenReady().then(() => {
+  const { session } = require$1("electron");
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ["*://*.youtube.com/*", "*://*.googlevideo.com/*"] },
+    (details, callback) => {
+      details.requestHeaders["Referer"] = "https://www.youtube.com/";
+      callback({ cancel: false, requestHeaders: details.requestHeaders });
+    }
+  );
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [
+          "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *; media-src * blob:; frame-src *;"
+        ]
+      }
+    });
+  });
+  createWindow();
+});
 export {
   MAIN_DIST,
   RENDERER_DIST,

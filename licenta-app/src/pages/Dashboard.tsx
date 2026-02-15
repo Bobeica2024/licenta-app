@@ -107,6 +107,12 @@ const Dashboard = () => {
                         >
                             Connect
                         </button>
+                        <button
+                            onClick={() => setUrl('https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4')}
+                            className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-medium transition-colors"
+                        >
+                            Test MP4
+                        </button>
                     </div>
 
                     <div className="bg-black rounded-xl border border-gray-800 flex-1 overflow-hidden relative">
