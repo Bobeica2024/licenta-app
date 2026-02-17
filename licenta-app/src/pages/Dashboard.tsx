@@ -1,17 +1,22 @@
 import React, { useState, useRef } from 'react';
 import StreamPlayer, { StreamPlayerRef } from '../components/StreamPlayer';
 import { useRecorder } from '../hooks/useRecorder';
+import FileExplorer from '../components/FileExplorer';
 
 const Dashboard = () => {
     const [url, setUrl] = useState('');
     const [inputUrl, setInputUrl] = useState('');
     const [saveDestination, setSaveDestination] = useState('local'); // 'local' | 'sqlite' | 'drive'
     const [isUploading, setIsUploading] = useState(false);
+    const [showSaveModal, setShowSaveModal] = useState(false);
 
     const [showRawYoutube, setShowRawYoutube] = useState(false);
     const playerWrapperRef = useRef<HTMLDivElement>(null);
 
     const playerRef = useRef<StreamPlayerRef>(null);
+
+    // Get user state to conditionally show save options
+    const user = localStorage.getItem('user');
 
     // We need to track the cropped path if it exists to save THAT one instead of the original temp.
     // Since onStop is async and independent of the render cycle for saving (user clicks button later),
@@ -74,6 +79,7 @@ const Dashboard = () => {
 
                 setIsUploading(true); // Show some activity while cropping
                 try {
+                    // @ts-ignore
                     const result = await window.api.recorder.cropVideo({ inputPath: path, crop });
 
                     if (result.success && result.outputPath) {
@@ -99,36 +105,42 @@ const Dashboard = () => {
         }
     }, [isRecording]);
 
-    const handleSaveRecording = async () => {
+    const handleSaveClick = async () => {
+        if (saveDestination === 'sqlite') {
+            setShowSaveModal(true);
+        } else {
+            handleConfirmSave(null);
+        }
+    };
+
+    const handleConfirmSave = async (folderId: number | null) => {
+        setShowSaveModal(false);
         // Use cropped path if available, otherwise original
         const path = croppedFilePath || currentFilePath;
         if (!path) return;
 
         setIsUploading(true);
         try {
+            const userObj = user ? JSON.parse(user) : null;
             const result = await window.api.recorder.saveFile({
                 tempPath: path,
                 destination: saveDestination,
-                // userId: 1, // TODO: Get actual user ID
+                userId: userObj?.id,
                 title: `Recording ${new Date().toLocaleString()}`,
-                sourceUrl: url
+                sourceUrl: url,
+                folderId: folderId
             });
 
             if (result.success) {
-                alert(`Saved successfully to: ${saveDestination === 'drive' ? 'Google Drive' : result.filePath}`);
-                // Cleanup both files if needed
-                if (croppedFilePath && currentFilePath && croppedFilePath !== path) {
-                    await discardRecording(); // cleans currentFilePath
-                    await window.api.recorder.deleteTempFile(croppedFilePath);
-                } else {
-                    await discardRecording();
-                }
-                setCroppedFilePath(null);
+                alert(`Salvat cu succes în: ${saveDestination === 'drive' ? 'Google Drive' : result.filePath}`);
+
+                // Don't discard immediately. Let the user do it when they want a new recording.
+                // We just stop the loading spinner.
             } else {
-                alert(`Save failed: ${result.error}`);
+                alert(`Salvare eșuată: ${result.error}`);
             }
         } catch (err: any) {
-            alert(`Error saving: ${err.message}`);
+            alert(`Eroare la salvare: ${err.message}`);
         } finally {
             setIsUploading(false);
         }
@@ -138,6 +150,7 @@ const Dashboard = () => {
         if (confirm("Sigur doriți să renunțați la înregistrare?")) {
             await discardRecording();
             if (croppedFilePath) {
+                // @ts-ignore
                 await window.api.recorder.deleteTempFile(croppedFilePath);
                 setCroppedFilePath(null);
             }
@@ -180,15 +193,29 @@ const Dashboard = () => {
         }
     };
 
+    const handleStartNewRecording = async () => {
+        // If there is an existing recording, clean it up first (auto-discard)
+        if (currentFilePath) {
+            await discardRecording();
+            // Also clean up cropped file if it exists
+            if (croppedFilePath) {
+                // @ts-ignore
+                await window.api.recorder.deleteTempFile(croppedFilePath);
+                setCroppedFilePath(null);
+            }
+        }
+        await startRecording();
+    };
+
     return (
-        <div className="flex-1 p-8 bg-gray-950 text-white overflow-auto">
-            <h2 className="text-3xl font-bold mb-6">Dashboard</h2>
+        <div className="flex-1 p-8 bg-gray-950 text-white overflow-auto relative">
+            <h2 className="text-3xl font-bold mb-6">Panou de Control</h2>
 
             {/* Debug Monitor */}
             <div className="mb-4 p-2 bg-gray-800 rounded border border-gray-700 font-mono text-xs">
-                <p>API Status: <span className={window.api ? "text-green-500" : "text-red-500"}>{window.api ? "CONNECTED" : "DISCONNECTED"}</span></p>
-                <p>Path: {currentFilePath || "None"}</p>
-                {croppedFilePath && <p>Cropped Path: {croppedFilePath}</p>}
+                <p>Status API: <span className={(window as any).api ? "text-green-500" : "text-red-500"}>{(window as any).api ? "CONECTAT" : "DECONECTAT"}</span></p>
+                <p>Cale: {currentFilePath || "Niciuna"}</p>
+                {croppedFilePath && <p>Cale Decupată: {croppedFilePath}</p>}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
@@ -198,7 +225,7 @@ const Dashboard = () => {
                         <input
                             type="text"
                             className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
-                            placeholder="Paste Youtube URL here..."
+                            placeholder="Introdu URL Youtube..."
                             value={inputUrl}
                             onChange={(e) => setInputUrl(e.target.value)}
                             disabled={isRecording || !!currentFilePath}
@@ -208,7 +235,7 @@ const Dashboard = () => {
                             className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-medium transition-colors"
                             disabled={isRecording || !!currentFilePath}
                         >
-                            Connect
+                            Conectează
                         </button>
                         <button
                             onClick={() => setUrl('https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4')}
@@ -231,7 +258,7 @@ const Dashboard = () => {
                             className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-medium transition-colors"
                             disabled={isRecording || !!currentFilePath}
                         >
-                            {showRawYoutube ? 'Show Player' : 'Load Iframe'}
+                            {showRawYoutube ? 'Arată Player' : 'Încarcă Iframe'}
                         </button>
                     </div>
 
@@ -245,14 +272,14 @@ const Dashboard = () => {
                             {!isRecording && currentFilePath ? (
                                 <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 border-2 border-yellow-500/50 relative p-4">
                                     <div className="absolute top-4 left-4 bg-yellow-600 text-white text-xs px-2 py-1 rounded font-bold uppercase tracking-wider z-10">
-                                        Preview Mode {croppedFilePath ? '(Cropped)' : ''}
+                                        Mod Previzualizare {croppedFilePath ? '(Decupat)' : ''}
                                     </div>
                                     <video
                                         src={`file://${croppedFilePath || currentFilePath}`}
                                         controls
                                         className="w-full h-full object-contain"
                                     />
-                                    <p className="text-gray-400 text-sm mt-2">Review your recording before saving.</p>
+                                    <p className="text-gray-400 text-sm mt-2">Verifică înregistrarea înainte de salvare.</p>
                                 </div>
                             ) : url ? (
                                 <StreamPlayer
@@ -263,13 +290,10 @@ const Dashboard = () => {
                                     onPause={handleVideoPauseCallback}
                                     onPlay={handleVideoPlayCallback}
                                 />
-                                {isRecording && (
-                                <div className="absolute inset-0 z-50 bg-transparent cursor-none" />
-                            )}
                             ) : (
-                            <div className="flex items-center justify-center h-full text-gray-500">
-                                No stream connected
-                            </div>
+                                <div className="flex items-center justify-center h-full text-gray-500">
+                                    Niciun stream conectat
+                                </div>
                             )}
                         </div>
                     </div>
@@ -277,18 +301,18 @@ const Dashboard = () => {
 
                 {/* Controls Area */}
                 <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 flex flex-col">
-                    <h3 className="text-xl font-semibold mb-6">Controls</h3>
+                    <h3 className="text-xl font-semibold mb-6">Controale</h3>
 
                     <div className="space-y-4">
-                        {/* 1. IDLE / READY state */}
-                        {!isRecording && !currentFilePath && (
+                        {/* 1. START RECORDING (Visible if NOT recording) */}
+                        {!isRecording && (
                             <button
-                                onClick={startRecording}
+                                onClick={handleStartNewRecording}
                                 className={`w-full py-4 rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-2 ${!url ? 'bg-gray-700 cursor-not-allowed text-gray-400' : 'bg-red-600 hover:bg-red-700 text-white'}`}
                                 disabled={!url || isUploading}
                             >
                                 <div className={`w-4 h-4 rounded-full ${!url ? 'bg-gray-500' : 'bg-white animate-pulse'}`} />
-                                Start Recording
+                                {currentFilePath ? "Începe Înregistrare Nouă" : "Începe Înregistrarea"}
                             </button>
                         )}
 
@@ -297,21 +321,21 @@ const Dashboard = () => {
                             <div className="space-y-4">
                                 <div className="bg-red-900/30 border border-red-900 rounded-lg p-4 text-center animate-pulse">
                                     <span className="text-red-400 font-mono text-xl">{recordingTime}</span>
-                                    <p className="text-xs text-red-500 uppercase mt-1">Status: {isPaused ? 'PAUSED' : 'LIVE'}</p>
+                                    <p className="text-xs text-red-500 uppercase mt-1">Status: {isPaused ? 'PAUZĂ' : 'LIVE'}</p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     {isPaused ? (
                                         <button onClick={handleResumeRecording} className="py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors">
-                                            Resume Rec
+                                            Reia Înr.
                                         </button>
                                     ) : (
                                         <button onClick={pauseRecording} className="py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-medium transition-colors">
-                                            Pause Rec
+                                            Pauză Înr.
                                         </button>
                                     )}
                                     <button onClick={stopRecording} className="py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors">
-                                        Stop Rec
+                                        Stop Înr.
                                     </button>
                                 </div>
                             </div>
@@ -320,7 +344,7 @@ const Dashboard = () => {
                         {/* 3. PREVIEW / SAVE state */}
                         {!isRecording && currentFilePath && (
                             <div className="space-y-4 animate-fade-in">
-                                <label className="text-sm text-gray-400 block mb-2">Recording Finished</label>
+                                <label className="text-sm text-gray-400 block mb-2">Înregistrare Finalizată</label>
 
                                 <div className="flex gap-2">
                                     <button
@@ -328,30 +352,30 @@ const Dashboard = () => {
                                         className="flex-1 py-3 bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                                         title="Discard Recording"
                                     >
-                                        🗑️ Discard
+                                        🗑️ Renunță
                                     </button>
 
                                     <button
-                                        onClick={handleSaveRecording}
+                                        onClick={handleSaveClick}
                                         className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
                                         disabled={isUploading}
                                     >
-                                        {isUploading ? 'Saving...' : '💾 Save Recording'}
+                                        {isUploading ? 'Se salvează...' : '💾 Salvează'}
                                     </button>
                                 </div>
 
                                 <hr className="border-gray-800 my-4" />
 
                                 <div className="space-y-2">
-                                    <label className="text-sm text-gray-400">Save Destination</label>
+                                    <label className="text-sm text-gray-400">Destinație Salvare</label>
                                     <select
                                         className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none"
                                         value={saveDestination}
                                         onChange={(e) => setSaveDestination(e.target.value)}
                                         disabled={isUploading}
                                     >
-                                        <option value="local">Local Computer</option>
-                                        <option value="sqlite">Database (SQLite)</option>
+                                        <option value="local">Computer Local</option>
+                                        {user && <option value="sqlite">Bază de date (Local)</option>}
                                         <option value="drive">Google Drive</option>
                                     </select>
                                 </div>
@@ -361,9 +385,9 @@ const Dashboard = () => {
                         {/* Placeholder for when no action is active, just to keep layout consistent if needed */}
                         {!isRecording && !currentFilePath && (
                             <div className="space-y-2 opacity-50">
-                                <label className="text-sm text-gray-400">Save Destination (Inactive)</label>
+                                <label className="text-sm text-gray-400">Destinație Salvare (Inactiv)</label>
                                 <select className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2" disabled>
-                                    <option>Local Computer</option>
+                                    <option>Computer Local</option>
                                 </select>
                             </div>
                         )}
@@ -371,6 +395,29 @@ const Dashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Folder Selection Modal */}
+            {showSaveModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                    <div className="bg-gray-900 w-[800px] h-[600px] rounded-xl flex flex-col border border-gray-700 shadow-2xl">
+                        <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-800">
+                            <h3 className="font-bold text-xl text-white">Selectează Folder</h3>
+                            <button
+                                onClick={() => setShowSaveModal(false)}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-hidden p-2">
+                            <FileExplorer
+                                mode="select"
+                                onSelect={(folderId) => handleConfirmSave(folderId)}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

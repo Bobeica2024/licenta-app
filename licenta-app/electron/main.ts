@@ -3,10 +3,12 @@ import './db' // Initialize database
 import { setupAuthHandlers } from './auth';
 import { setupRecorderHandlers } from './recorder';
 import { setupDriveHandlers } from './drive';
+import { setupLibraryHandlers } from './library';
 
 setupAuthHandlers();
 setupRecorderHandlers();
 setupDriveHandlers();
+setupLibraryHandlers();
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'

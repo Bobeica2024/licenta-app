@@ -1,10 +1,25 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const Sidebar = () => {
     const location = useLocation();
+    const navigate = useNavigate();
 
     const isActive = (path: string) => location.pathname === path;
+
+    const user = localStorage.getItem('user');
+
+
+    const handleAuthAction = () => {
+        if (user) {
+            // Logout
+            localStorage.removeItem('user');
+        } else {
+            // Login (from Guest)
+            localStorage.removeItem('guest');
+        }
+        navigate('/');
+    };
 
     return (
         <div className="w-64 h-screen bg-gray-900 text-white flex flex-col p-4 border-r border-gray-800">
@@ -12,32 +27,37 @@ const Sidebar = () => {
 
             <nav className="flex-1 space-y-2">
                 <Link
-                    to="/"
-                    className={`block px-4 py-3 rounded-lg transition-colors ${isActive('/') ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+                    to="/dashboard"
+                    className={`block px-4 py-3 rounded-lg transition-colors ${isActive('/dashboard') ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
                 >
-                    Dashboard
+                    Panou de Control
                 </Link>
-                <Link
-                    to="/library"
-                    className={`block px-4 py-3 rounded-lg transition-colors ${isActive('/library') ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
-                >
-                    Library
-                </Link>
+                {user && (
+                    <Link
+                        to="/library"
+                        className={`block px-4 py-3 rounded-lg transition-colors ${isActive('/library') ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+                    >
+                        Bază de date
+                    </Link>
+                )}
                 <Link
                     to="/settings"
                     className={`block px-4 py-3 rounded-lg transition-colors ${isActive('/settings') ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
                 >
-                    Settings
+                    Setări
                 </Link>
             </nav>
 
             <div className="mt-auto">
-                <Link
-                    to="/login"
-                    className="block px-4 py-3 rounded-lg hover:bg-red-900/50 text-red-400 transition-colors"
+                <button
+                    onClick={handleAuthAction}
+                    className={`block w-full px-4 py-3 rounded-full font-bold text-center transition-colors ${user
+                        ? 'bg-black text-red-500 hover:bg-gray-900' // Deconectare (User)
+                        : 'bg-white text-red-600 hover:bg-gray-100' // Conectare (Guest)
+                        }`}
                 >
-                    Logout
-                </Link>
+                    {user ? 'Deconectare' : 'Conectare'}
+                </button>
             </div>
         </div>
     );

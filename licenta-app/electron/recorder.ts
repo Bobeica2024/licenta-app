@@ -133,7 +133,7 @@ export function setupRecorderHandlers() {
     });
 
     // 9. Save File (Move Temp to Final)
-    ipcMain.handle('recorder:save-file', async (_, { tempPath, destination, userId, title, sourceUrl }) => {
+    ipcMain.handle('recorder:save-file', async (_, { tempPath, destination, userId, title, sourceUrl, folderId }) => {
         try {
             if (!fs.existsSync(tempPath)) {
                 return { success: false, error: 'Temp file not found' };
@@ -153,11 +153,6 @@ export function setupRecorderHandlers() {
 
                 fs.copyFileSync(tempPath, finalPath);
             } else if (destination === 'drive') {
-                // For drive, we just return the temp path, the frontend handles upload
-                // Or we could move it to a persistent cache. 
-                // Let's keep it simple: Use temp path for upload, then delete manually if needed.
-                // But user expects "Save" to do something. 
-                // If Drive, we don't move file locally. 
                 return { success: true, filePath: tempPath };
             } else {
                 // SQLite / DB - save to a dedicated app folder
@@ -169,16 +164,11 @@ export function setupRecorderHandlers() {
                 fs.copyFileSync(tempPath, finalPath);
             }
 
-            // Clean up temp if moved
-            if (finalPath && finalPath !== tempPath) {
-                fs.unlinkSync(tempPath);
-            }
-
             // DB Logging
             if (userId) {
                 try {
-                    const stmt = db.prepare('INSERT INTO fragments (user_id, title, source_url, file_path) VALUES (?, ?, ?, ?)');
-                    stmt.run(userId, title || 'Untitled Recording', sourceUrl || '', finalPath || tempPath);
+                    const stmt = db.prepare('INSERT INTO fragments (user_id, folder_id, title, source_url, file_path) VALUES (?, ?, ?, ?, ?)');
+                    stmt.run(userId, folderId || null, title || 'Untitled Recording', sourceUrl || '', finalPath || tempPath);
                 } catch (dbErr) {
                     console.error('DB Insert Error:', dbErr);
                 }

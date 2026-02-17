@@ -43,6 +43,11 @@ try {
       upload: (filePath, tokens) => electron.ipcRenderer.invoke("drive:upload", { filePath, tokens }),
       logout: () => electron.ipcRenderer.invoke("drive:logout"),
       getSession: () => electron.ipcRenderer.invoke("drive:get-session")
+    },
+    library: {
+      getContents: (data) => electron.ipcRenderer.invoke("library:get-contents", data),
+      createFolder: (data) => electron.ipcRenderer.invoke("library:create-folder", data),
+      deleteItem: (data) => electron.ipcRenderer.invoke("library:delete-item", data)
     }
   });
   console.log("--- PRELOAD SCRIPT FINISHED ---");

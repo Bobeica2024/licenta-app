@@ -47,6 +47,11 @@ try {
       upload: (filePath: string, tokens: any) => ipcRenderer.invoke('drive:upload', { filePath, tokens }),
       logout: () => ipcRenderer.invoke('drive:logout'),
       getSession: () => ipcRenderer.invoke('drive:get-session'),
+    },
+    library: {
+      getContents: (data: any) => ipcRenderer.invoke('library:get-contents', data),
+      createFolder: (data: any) => ipcRenderer.invoke('library:create-folder', data),
+      deleteItem: (data: any) => ipcRenderer.invoke('library:delete-item', data),
     }
   })
 

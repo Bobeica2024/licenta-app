@@ -17,13 +17,18 @@ interface Window {
             stopSave: (data: { filePath: string; userId?: number; title?: string; sourceUrl?: string; saveToDb?: boolean }) => Promise<{ success: boolean; error?: string }>;
             cropVideo: (data: { inputPath: string; crop: { x: number; y: number; width: number; height: number } }) => Promise<{ success: boolean; outputPath?: string; error?: string }>;
             deleteTempFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
-            saveFile: (data: { tempPath: string; destination: string; userId?: number; title?: string; sourceUrl?: string }) => Promise<{ success: boolean; filePath?: string; error?: string }>;
+            saveFile: (data: { tempPath: string; destination: string; userId?: number; title?: string; sourceUrl?: string; folderId?: number | null }) => Promise<{ success: boolean; filePath?: string; error?: string }>;
         };
         drive: {
             authenticate: () => Promise<{ success: boolean; tokens?: any; error?: string }>;
             upload: (filePath: string, tokens: any) => Promise<{ success: boolean; error?: string }>;
             logout: () => Promise<{ success: boolean; error?: string }>;
             getSession: () => Promise<{ isLoggedIn: boolean; user?: any }>;
-        }
+        };
+        library: {
+            getContents: (data: { folderId: number | null; userId: number }) => Promise<any[]>;
+            createFolder: (data: { name: string; parentId: number | null; userId: number }) => Promise<{ success: boolean; error?: string }>;
+            deleteItem: (data: { id: number; type: 'folder' | 'file'; userId: number }) => Promise<{ success: boolean; error?: string }>;
+        };
     }
 }

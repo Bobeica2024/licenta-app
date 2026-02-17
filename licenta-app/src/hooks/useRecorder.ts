@@ -38,7 +38,8 @@ export const useRecorder = ({ onStop }: UseRecorderProps = {}) => {
                         mandatory: {
                             chromeMediaSource: 'desktop',
                             chromeMediaSourceId: sourceId
-                        }
+                        },
+                        cursor: 'never' // Hide cursor in the stream
                     } as any
                 });
 

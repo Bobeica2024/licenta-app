@@ -36,7 +36,7 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
             {error && (
                 <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/80 text-red-500 p-4 text-center">
                     <div>
-                        <p className="font-bold text-lg">Stream Error</p>
+                        <p className="font-bold text-lg">Eroare Stream</p>
                         <p className="text-sm">{error.toString()}</p>
                     </div>
                 </div>
@@ -56,7 +56,7 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
                 </div>
             ) : url.endsWith('.mp4') ? (
                 <div style={{ padding: 20, background: 'red' }}>
-                    <p style={{ color: 'white' }}>Raw Video Tag Test</p>
+                    <p style={{ color: 'white' }}>Test Etichetă Video Brută</p>
                     <video
                         src={url}
                         controls
@@ -93,7 +93,7 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
                     onProgress={(p: { playedSeconds: number }) => console.log('StreamPlayer: Progress', p.playedSeconds)}
                     onError={(e) => {
                         console.error('StreamPlayer Error:', e);
-                        setError("Failed to load video. Please check URL or connection.");
+                        setError("Nu s-a putut încărca videoclipul. Verifică URL-ul sau conexiunea.");
                     }}
                     onPlay={() => {
                         setPlaying(true);

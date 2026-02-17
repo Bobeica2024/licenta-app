@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Settings from './pages/Settings';
+import Library from './pages/Library';
 
 const AppLayout = () => {
   return (
@@ -21,12 +22,13 @@ function App() {
   return (
     <Router>
       <Routes>
+        <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
 
         {/* Protected/Main Layout Routes */}
         <Route element={<AppLayout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/library" element={<div className="p-8">Library (Coming Soon)</div>} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/library" element={<Library />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
       </Routes>

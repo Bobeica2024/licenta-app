@@ -20,18 +20,40 @@ db.exec(`
     password_hash TEXT NOT NULL,
     hint TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS folders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    parent_id INTEGER,
+    user_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(parent_id) REFERENCES folders(id) ON DELETE CASCADE,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  );
   
   CREATE TABLE IF NOT EXISTS fragments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
+    folder_id INTEGER,
     title TEXT NOT NULL,
     source_url TEXT,
     file_path TEXT,
     drive_id TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id)
+    FOREIGN KEY(user_id) REFERENCES users(id),
+    FOREIGN KEY(folder_id) REFERENCES folders(id) ON DELETE SET NULL
   );
 `);
+try {
+  const columns = db.pragma("table_info(fragments)");
+  const hasFolderId = columns.some((c) => c.name === "folder_id");
+  if (!hasFolderId) {
+    console.log("Migrating database: Adding folder_id to fragments table");
+    db.exec("ALTER TABLE fragments ADD COLUMN folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL");
+  }
+} catch (err) {
+  console.error("Migration error:", err);
+}
 var randomFallback = null;
 function randomBytes(len) {
   try {
@@ -1888,7 +1910,7 @@ function setupRecorderHandlers() {
       return { success: false, error: err.message };
     }
   });
-  ipcMain.handle("recorder:save-file", async (_, { tempPath, destination, userId, title, sourceUrl }) => {
+  ipcMain.handle("recorder:save-file", async (_, { tempPath, destination, userId, title, sourceUrl, folderId }) => {
     try {
       if (!fs.existsSync(tempPath)) {
         return { success: false, error: "Temp file not found" };
@@ -1912,13 +1934,10 @@ function setupRecorderHandlers() {
         finalPath = path.join(recordingsDir, path.basename(tempPath));
         fs.copyFileSync(tempPath, finalPath);
       }
-      if (finalPath && finalPath !== tempPath) {
-        fs.unlinkSync(tempPath);
-      }
       if (userId) {
         try {
-          const stmt = db.prepare("INSERT INTO fragments (user_id, title, source_url, file_path) VALUES (?, ?, ?, ?)");
-          stmt.run(userId, title || "Untitled Recording", sourceUrl || "", finalPath || tempPath);
+          const stmt = db.prepare("INSERT INTO fragments (user_id, folder_id, title, source_url, file_path) VALUES (?, ?, ?, ?, ?)");
+          stmt.run(userId, folderId || null, title || "Untitled Recording", sourceUrl || "", finalPath || tempPath);
         } catch (dbErr) {
           console.error("DB Insert Error:", dbErr);
         }
@@ -2022,9 +2041,25 @@ function setupDriveHandlers() {
     }
   });
 }
+function setupLibraryHandlers() {
+  ipcMain.handle("library:get-contents", async (_, folderId) => {
+    try {
+      let foldersQuery = "SELECT id, name FROM folders WHERE user_id = ? AND parent_id IS ?";
+      if (folderId === null || folderId === void 0) {
+      } else {
+        foldersQuery = "SELECT id, name FROM folders WHERE user_id = ? AND parent_id = ?";
+      }
+      return [];
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  });
+}
 setupAuthHandlers();
 setupRecorderHandlers();
 setupDriveHandlers();
+setupLibraryHandlers();
 const require$1 = createRequire(import.meta.url);
 const __dirname$1 = path$1.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path$1.join(__dirname$1, "..");

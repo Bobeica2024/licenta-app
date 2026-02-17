@@ -26,10 +26,10 @@ const Settings = () => {
             if (result.success) {
                 await checkSession();
             } else {
-                setError(result.error || 'Authentication failed');
+                setError(result.error || 'Autentificare eșuată');
             }
         } catch (err: any) {
-            setError(err.message || 'An error occurred');
+            setError(err.message || 'A apărut o eroare');
         } finally {
             setLoading(false);
         }
@@ -49,13 +49,13 @@ const Settings = () => {
 
     return (
         <div className="flex-1 p-8 bg-gray-950 text-white overflow-auto">
-            <h2 className="text-3xl font-bold mb-6">Settings</h2>
+            <h2 className="text-3xl font-bold mb-6">Setări</h2>
 
             <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 max-w-2xl">
-                <h3 className="text-xl font-semibold mb-4 text-blue-400">Google Drive Integration</h3>
+                <h3 className="text-xl font-semibold mb-4 text-blue-400">Integrare Google Drive</h3>
 
                 <p className="text-gray-400 mb-6">
-                    Connect your Google Drive account to save recordings directly to the cloud.
+                    Conectează contul Google Drive pentru a salva înregistrările direct în cloud.
                 </p>
 
                 {error && (
@@ -69,10 +69,10 @@ const Settings = () => {
                         <div className={`w-3 h-3 rounded-full ${driveSession.isLoggedIn ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-gray-600'}`} />
                         <div>
                             <p className="font-medium text-lg">
-                                {driveSession.isLoggedIn ? 'Connected' : 'Not Connected'}
+                                {driveSession.isLoggedIn ? 'Conectat' : 'Neconectat'}
                             </p>
                             {driveSession.isLoggedIn && (
-                                <p className="text-sm text-gray-500">Ready to upload files</p>
+                                <p className="text-sm text-gray-500">Gata pentru încărcare fișiere</p>
                             )}
                         </div>
                     </div>
@@ -83,7 +83,7 @@ const Settings = () => {
                             disabled={loading}
                             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
                         >
-                            {loading ? 'Connecting...' : 'Connect Drive'}
+                            {loading ? 'Se conectează...' : 'Conectează Drive'}
                         </button>
                     ) : (
                         <div className="flex gap-2">
@@ -92,21 +92,21 @@ const Settings = () => {
                                 disabled={loading}
                                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors text-sm"
                             >
-                                Switch Account
+                                Schimbă Cont
                             </button>
                             <button
                                 onClick={handleLogout}
                                 disabled={loading}
                                 className="px-4 py-2 bg-red-900/50 hover:bg-red-900 border border-red-900 text-red-200 rounded-lg font-medium transition-colors text-sm"
                             >
-                                Disconnect
+                                Deconectează
                             </button>
                         </div>
                     )}
                 </div>
 
                 <div className="mt-6 p-4 bg-yellow-900/20 border border-yellow-900/50 rounded-lg text-sm text-yellow-200/70">
-                    <p>Note: This integration uses a local loopback receiver (http://localhost:5000) to capture the authentication token securely.</p>
+                    <p>Notă: Această integrare folosește un receptor local (http://localhost:5000) pentru a captura token-ul de autentificare în siguranță.</p>
                 </div>
             </div>
         </div>
