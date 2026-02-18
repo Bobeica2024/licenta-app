@@ -4,6 +4,7 @@ import { app } from 'electron';
 
 const dbPath = path.join(app.getPath('userData'), 'database.sqlite');
 const db = new Database(dbPath);
+db.pragma('foreign_keys = ON');
 
 // Initialize database schema
 db.exec(`

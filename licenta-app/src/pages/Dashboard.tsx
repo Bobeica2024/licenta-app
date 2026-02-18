@@ -21,7 +21,22 @@ const Dashboard = () => {
     // We need to track the cropped path if it exists to save THAT one instead of the original temp.
     // Since onStop is async and independent of the render cycle for saving (user clicks button later),
     // we need to store the result of cropping.
-    const [croppedFilePath, setCroppedFilePath] = useState<string | null>(null);
+    // Initialize from session storage
+    const [croppedFilePath, setCroppedFilePath] = useState<string | null>(() => {
+        return sessionStorage.getItem('dashboard_croppedFilePath');
+    });
+
+    // New state for custom title
+    const [recordingTitle, setRecordingTitle] = useState('');
+
+    // Persist croppedFilePath
+    React.useEffect(() => {
+        if (croppedFilePath) {
+            sessionStorage.setItem('dashboard_croppedFilePath', croppedFilePath);
+        } else {
+            sessionStorage.removeItem('dashboard_croppedFilePath');
+        }
+    }, [croppedFilePath]);
 
     const {
         isRecording,
@@ -122,17 +137,25 @@ const Dashboard = () => {
         setIsUploading(true);
         try {
             const userObj = user ? JSON.parse(user) : null;
+            // Use custom title if provided, otherwise default timestamp
+            const finalTitle = recordingTitle.trim() || `Recording ${new Date().toLocaleString()}`;
+
             const result = await window.api.recorder.saveFile({
                 tempPath: path,
                 destination: saveDestination,
                 userId: userObj?.id,
-                title: `Recording ${new Date().toLocaleString()}`,
+                title: finalTitle,
                 sourceUrl: url,
                 folderId: folderId
             });
 
             if (result.success) {
-                alert(`Salvat cu succes în: ${saveDestination === 'drive' ? 'Google Drive' : result.filePath}`);
+                if (saveDestination === 'sqlite') {
+                    alert('Salvat cu succes în Bază de Date!');
+                } else {
+                    alert(`Salvat cu succes în: ${saveDestination === 'drive' ? 'Google Drive' : result.filePath}`);
+                }
+                setRecordingTitle(''); // Reset title
 
                 // Don't discard immediately. Let the user do it when they want a new recording.
                 // We just stop the loading spinner.
@@ -209,7 +232,7 @@ const Dashboard = () => {
 
     return (
         <div className="flex-1 p-8 bg-gray-950 text-white overflow-auto relative">
-            <h2 className="text-3xl font-bold mb-6">Panou de Control</h2>
+            <h2 className="text-3xl font-bold mb-6">Panou de control</h2>
 
             {/* Debug Monitor */}
             <div className="mb-4 p-2 bg-gray-800 rounded border border-gray-700 font-mono text-xs">
@@ -275,7 +298,7 @@ const Dashboard = () => {
                                         Mod Previzualizare {croppedFilePath ? '(Decupat)' : ''}
                                     </div>
                                     <video
-                                        src={`file://${croppedFilePath || currentFilePath}`}
+                                        src={`media:///${(croppedFilePath || currentFilePath || '').replace(/\\/g, '/')}`}
                                         controls
                                         className="w-full h-full object-contain"
                                     />
@@ -312,7 +335,7 @@ const Dashboard = () => {
                                 disabled={!url || isUploading}
                             >
                                 <div className={`w-4 h-4 rounded-full ${!url ? 'bg-gray-500' : 'bg-white animate-pulse'}`} />
-                                {currentFilePath ? "Începe Înregistrare Nouă" : "Începe Înregistrarea"}
+                                {currentFilePath ? "Începe înregistrare nouă" : "Începe înregistrarea"}
                             </button>
                         )}
 
@@ -401,15 +424,31 @@ const Dashboard = () => {
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
                     <div className="bg-gray-900 w-[800px] h-[600px] rounded-xl flex flex-col border border-gray-700 shadow-2xl">
                         <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-800">
-                            <h3 className="font-bold text-xl text-white">Selectează Folder</h3>
+                            <h3 className="font-bold text-xl text-white">Salvare în bază de date</h3>
                             <button
-                                onClick={() => setShowSaveModal(false)}
+                                onClick={() => {
+                                    setShowSaveModal(false);
+                                    setRecordingTitle(''); // Clear title when modal is closed
+                                }}
                                 className="text-gray-400 hover:text-white"
                             >
                                 ✕
                             </button>
                         </div>
+
+                        <div className="p-4 bg-gray-800 border-b border-gray-700">
+                            <label className="block text-sm text-gray-400 mb-1">Titlu înregistrare</label>
+                            <input
+                                type="text"
+                                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                                placeholder="Introdul titlul aici..."
+                                value={recordingTitle}
+                                onChange={(e) => setRecordingTitle(e.target.value)}
+                            />
+                        </div>
+
                         <div className="flex-1 overflow-hidden p-2">
+                            <p className="text-sm text-gray-400 px-2 py-1">Selectează folderul destinație:</p>
                             <FileExplorer
                                 mode="select"
                                 onSelect={(folderId) => handleConfirmSave(folderId)}

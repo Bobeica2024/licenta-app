@@ -30,7 +30,7 @@ const Sidebar = () => {
                     to="/dashboard"
                     className={`block px-4 py-3 rounded-lg transition-colors ${isActive('/dashboard') ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
                 >
-                    Panou de Control
+                    Panou de control
                 </Link>
                 {user && (
                     <Link

@@ -1,4 +1,4 @@
-import { app, ipcMain, dialog, shell, BrowserWindow } from "electron";
+import { app, ipcMain, dialog, shell, BrowserWindow, protocol, net } from "electron";
 import Database from "better-sqlite3";
 import path from "path";
 import nodeCrypto from "crypto";
@@ -8,11 +8,12 @@ import ffmpegPath from "ffmpeg-static";
 import http from "http";
 import url from "url";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import path$1 from "node:path";
 import fs$1 from "node:fs";
 const dbPath = path.join(app.getPath("userData"), "database.sqlite");
 const db = new Database(dbPath);
+db.pragma("foreign_keys = ON");
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1928,9 +1929,11 @@ function setupRecorderHandlers() {
       } else if (destination === "drive") {
         return { success: true, filePath: tempPath };
       } else {
-        const docsPath = app.getPath("documents");
-        const recordingsDir = path.join(docsPath, "LicentaApp_Recordings");
-        if (!fs.existsSync(recordingsDir)) fs.mkdirSync(recordingsDir);
+        const userDataPath = app.getPath("userData");
+        const recordingsDir = path.join(userDataPath, "storage", "recordings");
+        if (!fs.existsSync(recordingsDir)) {
+          fs.mkdirSync(recordingsDir, { recursive: true });
+        }
         finalPath = path.join(recordingsDir, path.basename(tempPath));
         fs.copyFileSync(tempPath, finalPath);
       }
@@ -2042,17 +2045,88 @@ function setupDriveHandlers() {
   });
 }
 function setupLibraryHandlers() {
-  ipcMain.handle("library:get-contents", async (_, folderId) => {
+  ipcMain.handle("library:get-contents", async (_, { folderId, userId }) => {
     try {
-      let foldersQuery = "SELECT id, name FROM folders WHERE user_id = ? AND parent_id IS ?";
-      if (folderId === null || folderId === void 0) {
+      let foldersQuery = "SELECT * FROM folders WHERE user_id = ? AND parent_id IS ?";
+      let foldersParams = [userId, folderId];
+      if (folderId !== null && folderId !== void 0) {
+        foldersQuery = "SELECT * FROM folders WHERE user_id = ? AND parent_id = ?";
+        foldersParams = [userId, folderId];
       } else {
-        foldersQuery = "SELECT id, name FROM folders WHERE user_id = ? AND parent_id = ?";
+        foldersParams = [userId, null];
       }
-      return [];
+      const folders = db.prepare(foldersQuery).all(...foldersParams);
+      let filesQuery = "SELECT * FROM fragments WHERE user_id = ? AND folder_id IS ?";
+      let filesParams = [userId, folderId];
+      if (folderId !== null && folderId !== void 0) {
+        filesQuery = "SELECT * FROM fragments WHERE user_id = ? AND folder_id = ?";
+        filesParams = [userId, folderId];
+      } else {
+        filesParams = [userId, null];
+      }
+      const files = db.prepare(filesQuery).all(...filesParams);
+      const mappedFolders = folders.map((f) => ({
+        id: f.id,
+        name: f.name,
+        type: "folder",
+        parentId: f.parent_id,
+        createdAt: f.created_at
+      }));
+      const mappedFiles = files.map((f) => ({
+        id: f.id,
+        name: f.title,
+        type: "file",
+        parentId: f.folder_id,
+        createdAt: f.created_at,
+        filePath: f.file_path
+        // duration: ...
+      }));
+      return [...mappedFolders, ...mappedFiles];
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching library contents:", err);
       return [];
+    }
+  });
+  ipcMain.handle("library:create-folder", async (_, { name, parentId, userId }) => {
+    try {
+      if (!name || !userId) throw new Error("Invalid arguments");
+      const stmt = db.prepare("INSERT INTO folders (name, parent_id, user_id) VALUES (?, ?, ?)");
+      const info = stmt.run(name, parentId || null, userId);
+      return { success: true, id: info.lastInsertRowid };
+    } catch (err) {
+      console.error("Error creating folder:", err);
+      return { success: false, error: err.message };
+    }
+  });
+  ipcMain.handle("library:delete-item", async (_, { id, type, userId }) => {
+    try {
+      if (type === "folder") {
+        const getIds = db.prepare(`
+                    WITH RECURSIVE subdirectory_ids(id) AS (
+                        SELECT id FROM folders WHERE id = ? AND user_id = ?
+                        UNION ALL
+                        SELECT f.id FROM folders f
+                        JOIN subdirectory_ids s ON f.parent_id = s.id
+                    )
+                    SELECT id FROM subdirectory_ids;
+                `);
+        const foldersAndSubfolders = getIds.all(id, userId);
+        const idsToDelete = foldersAndSubfolders.map((f) => f.id);
+        if (idsToDelete.length > 0) {
+          const placeHolders = idsToDelete.map(() => "?").join(",");
+          const deleteFragments = db.prepare(`DELETE FROM fragments WHERE folder_id IN (${placeHolders}) AND user_id = ?`);
+          deleteFragments.run(...idsToDelete, userId);
+          const deleteFolder = db.prepare("DELETE FROM folders WHERE id = ? AND user_id = ?");
+          deleteFolder.run(id, userId);
+        }
+      } else {
+        const stmt = db.prepare("DELETE FROM fragments WHERE id = ? AND user_id = ?");
+        stmt.run(id, userId);
+      }
+      return { success: true };
+    } catch (err) {
+      console.error("Error deleting item:", err);
+      return { success: false, error: err.message };
     }
   });
 }
@@ -2120,7 +2194,38 @@ app.on("activate", () => {
 });
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 app.disableHardwareAcceleration();
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "media",
+    privileges: {
+      secure: true,
+      supportFetchAPI: true,
+      bypassCSP: true,
+      standard: true,
+      // Behaves like http/file
+      stream: true
+    }
+  }
+]);
 app.whenReady().then(() => {
+  protocol.handle("media", (request) => {
+    try {
+      const urlObj = new URL(request.url);
+      let filePath = urlObj.pathname;
+      if (urlObj.host && /^[a-z]$/i.test(urlObj.host)) {
+        filePath = `${urlObj.host}:${filePath}`;
+      } else if (process.platform === "win32" && filePath.startsWith("/") && /^[a-zA-Z]:/.test(filePath.slice(1))) {
+        filePath = filePath.slice(1);
+      }
+      const decodedPath = decodeURIComponent(filePath);
+      console.log(`[Media Protocol] Raw: ${request.url} -> Path: ${decodedPath}`);
+      const fileUrl = pathToFileURL(decodedPath).toString();
+      return net.fetch(fileUrl);
+    } catch (error) {
+      console.error("[Media Protocol] Error:", error);
+      return new Response("Bad Request", { status: 400 });
+    }
+  });
   const { session } = require$1("electron");
   session.defaultSession.webRequest.onBeforeSendHeaders(
     { urls: ["*://*.youtube.com/*", "*://*.googlevideo.com/*"] },
@@ -2133,7 +2238,7 @@ app.whenReady().then(() => {
       responseHeaders: {
         ...details.responseHeaders,
         "Content-Security-Policy": [
-          "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *; media-src * blob:; frame-src *;"
+          "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: media: *; media-src * blob: media:; frame-src *;"
         ]
       }
     });

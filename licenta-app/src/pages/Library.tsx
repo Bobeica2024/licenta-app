@@ -37,7 +37,7 @@ const Library = () => {
                         </div>
                         <div className="flex-1 bg-black flex items-center justify-center overflow-hidden">
                             <video
-                                src={`file://${playingFile.filePath}`}
+                                src={`media:///${(playingFile.filePath || '').replace(/\\/g, '/')}`}
                                 controls
                                 autoPlay
                                 className="max-w-full max-h-[70vh]"

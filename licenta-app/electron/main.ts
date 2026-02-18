@@ -113,7 +113,53 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 // Fix for black screen on some Windows systems (forces software rendering)
 app.disableHardwareAcceleration();
 
+// Register custom protocol 'media' to be privileged
+import { protocol, net } from 'electron';
+import { pathToFileURL } from 'node:url'; // Import pathToFileURL
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'media',
+    privileges: {
+      secure: true,
+      supportFetchAPI: true,
+      bypassCSP: true,
+      standard: true, // Behaves like http/file
+      stream: true
+    }
+  }
+])
+
 app.whenReady().then(() => {
+  // Handle 'media' protocol to serve local files
+  protocol.handle('media', (request) => {
+    try {
+      const urlObj = new URL(request.url);
+      let filePath = urlObj.pathname;
+
+      // Handle Windows drive letters
+      // Case 1: media://c/folder/file (host = 'c') -> filePath = '/folder/file'
+      if (urlObj.host && /^[a-z]$/i.test(urlObj.host)) {
+        filePath = `${urlObj.host}:${filePath}`;
+      }
+      // Case 2: media:///C:/folder/file (host = '') -> filePath = '/C:/folder/file'
+      else if (process.platform === 'win32' && filePath.startsWith('/') && /^[a-zA-Z]:/.test(filePath.slice(1))) {
+        filePath = filePath.slice(1);
+      }
+
+      const decodedPath = decodeURIComponent(filePath);
+      console.log(`[Media Protocol] Raw: ${request.url} -> Path: ${decodedPath}`);
+
+      const fileUrl = pathToFileURL(decodedPath).toString();
+      // console.log(`[Media Protocol] Serving: ${fileUrl}`);
+
+      return net.fetch(fileUrl);
+    } catch (error) {
+      console.error('[Media Protocol] Error:', error);
+      return new Response('Bad Request', { status: 400 });
+    }
+  });
+
   // Intercept requests to YouTube to fake the Referer header
   // This tricks YouTube into thinking the request comes from YouTube itself or a valid browser
   const { session } = require('electron');
@@ -134,7 +180,7 @@ app.whenReady().then(() => {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: *; media-src * blob:; frame-src *;"
+          "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: media: *; media-src * blob: media:; frame-src *;"
         ]
       }
     })

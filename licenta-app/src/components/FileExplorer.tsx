@@ -88,7 +88,11 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) =
 
     const handleDelete = async (e: React.MouseEvent, item: FileSystemItem) => {
         e.stopPropagation();
-        if (!confirm(`Sigur vrei să ștergi "${item.name}"?`)) return;
+        const confirmMessage = item.type === 'folder'
+            ? `Sigur doriți să ștergi folderul "${item.name}"? Acest lucru va duce la ștergerea permanentă a tuturor elementelor sale, adică subfoldere și înregistrări.`
+            : `Sigur doriți să ștergi înregistrarea "${item.name}"?`;
+
+        if (!confirm(confirmMessage)) return;
         try {
             const userStr = localStorage.getItem('user');
             const user = userStr ? JSON.parse(userStr) : null;
@@ -131,17 +135,17 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) =
                     <button
                         onClick={handleNavigateUp}
                         disabled={currentPath.length === 0}
-                        className="p-2 hover:bg-gray-800 rounded disabled:opacity-30"
-                        title="Go Up"
+                        className="flex items-center gap-2 px-3 py-2 hover:bg-gray-800 rounded-lg disabled:opacity-30 transition-colors text-gray-300 hover:text-white"
+                        title="Înapoi"
                     >
-                        ⬆️ Sus
+                        ⬅️ Înapoi
                     </button>
                     <button
                         onClick={() => setIsCreatingFolder(true)}
                         className="p-2 hover:bg-gray-800 rounded text-green-400"
                         title="New Folder"
                     >
-                        📁 Folder Nou
+                        📁 Folder nou
                     </button>
                 </div>
 

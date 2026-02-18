@@ -8,10 +8,22 @@ export const useRecorder = ({ onStop }: UseRecorderProps = {}) => {
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
-    const [filePath, setFilePath] = useState<string | null>(null);
+    // Initialize from session storage if available
+    const [filePath, setFilePath] = useState<string | null>(() => {
+        return sessionStorage.getItem('recorder_filePath');
+    });
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Persist filePath to session storage
+    useEffect(() => {
+        if (filePath) {
+            sessionStorage.setItem('recorder_filePath', filePath);
+        } else {
+            sessionStorage.removeItem('recorder_filePath');
+        }
+    }, [filePath]);
 
     useEffect(() => {
         return () => {

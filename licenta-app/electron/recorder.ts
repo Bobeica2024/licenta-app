@@ -155,10 +155,13 @@ export function setupRecorderHandlers() {
             } else if (destination === 'drive') {
                 return { success: true, filePath: tempPath };
             } else {
-                // SQLite / DB - save to a dedicated app folder
-                const docsPath = app.getPath('documents');
-                const recordingsDir = path.join(docsPath, 'LicentaApp_Recordings');
-                if (!fs.existsSync(recordingsDir)) fs.mkdirSync(recordingsDir);
+                // SQLite / DB - save to internal app storage (hidden from user documents)
+                const userDataPath = app.getPath('userData');
+                const recordingsDir = path.join(userDataPath, 'storage', 'recordings');
+
+                if (!fs.existsSync(recordingsDir)) {
+                    fs.mkdirSync(recordingsDir, { recursive: true });
+                }
 
                 finalPath = path.join(recordingsDir, path.basename(tempPath));
                 fs.copyFileSync(tempPath, finalPath);
