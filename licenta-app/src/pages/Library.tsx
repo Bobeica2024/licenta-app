@@ -4,11 +4,23 @@ import FileExplorer from '../components/FileExplorer';
 const Library = () => {
     const [playingFile, setPlayingFile] = useState<{ name: string, filePath: string } | null>(null);
 
-    const handlePlay = (file: any) => {
-        // file.filePath comes from DB. 
-        // We need to make sure it's accessible.
-        // If it's a local path, `file://` protocol is needed.
+    const handlePlay = async (file: any) => {
         setPlayingFile(file);
+
+        // Add to history
+        try {
+            const userStr = localStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+            if (user) {
+                await window.api.history.add({
+                    userId: user.id,
+                    actionType: 'VIEW_VIDEO',
+                    itemName: file.name
+                });
+            }
+        } catch (e) {
+            console.error('Failed to log history:', e);
+        }
     };
 
     return (

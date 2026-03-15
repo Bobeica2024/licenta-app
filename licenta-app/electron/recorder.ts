@@ -94,7 +94,7 @@ export function setupRecorderHandlers() {
             return { success: false, error: 'FFmpeg binary not found' };
         }
 
-        const outputPath = inputPath.replace('.webm', '-cropped.webm');
+        const outputPath = inputPath.replace('.webm', '-cropped.mp4');
 
         return new Promise((resolve) => {
             // crop=w:h:x:y

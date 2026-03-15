@@ -21,14 +21,32 @@ interface Window {
         };
         drive: {
             authenticate: () => Promise<{ success: boolean; tokens?: any; error?: string }>;
-            upload: (filePath: string, tokens: any) => Promise<{ success: boolean; error?: string }>;
+            upload: (filePath: string, tokens?: any, folderId?: string, title?: string) => Promise<{ success: boolean; fileId?: string; link?: string; error?: string }>;
             logout: () => Promise<{ success: boolean; error?: string }>;
             getSession: () => Promise<{ isLoggedIn: boolean; user?: any }>;
+            listFolders: (parentId?: string, tokens?: any) => Promise<{ success: boolean; folders?: { id: string; name: string }[]; error?: string }>;
+            sendEmail: (data: { to: string; subject: string; text: string; filePath: string; fileName: string }) => Promise<{ success: boolean; error?: string }>;
         };
         library: {
             getContents: (data: { folderId: number | null; userId: number }) => Promise<any[]>;
             createFolder: (data: { name: string; parentId: number | null; userId: number }) => Promise<{ success: boolean; error?: string }>;
             deleteItem: (data: { id: number; type: 'folder' | 'file'; userId: number }) => Promise<{ success: boolean; error?: string }>;
+            renameItem: (data: { id: number; type: string; newName: string; userId: number }) => Promise<{ success: boolean; error?: string }>;
+            moveItem: (data: { id: number; type: string; targetFolderId: number | null; userId: number }) => Promise<{ success: boolean; error?: string }>;
+            copyItem: (data: { id: number; type: string; targetFolderId: number | null; userId: number }) => Promise<{ success: boolean; error?: string }>;
         };
-    }
+        history: {
+            add: (data: { userId: number; actionType: string; itemName: string }) => Promise<{ success: boolean; error?: string }>;
+            get: (data: { userId: number; isAdmin: boolean }) => Promise<{ success: boolean; history?: any[]; error?: string }>;
+            delete: (data: { id: number; userId: number; isAdmin: boolean }) => Promise<{ success: boolean; error?: string }>;
+            getFragmentByName: (data: { itemName: string; ownerId: number }) => Promise<{ success: boolean; fragment?: any; error?: string }>;
+        };
+        admin: {
+            getUsers: (data: { isAdmin: boolean }) => Promise<{ success: boolean; users?: any[]; error?: string }>;
+            deleteUser: (data: { targetUserId: number; isAdmin: boolean }) => Promise<{ success: boolean; error?: string }>;
+        };
+        archive: {
+            create: (data: { items: { id: number; type: 'folder' | 'file' }[]; targetFolderId: number | null; archiveName?: string; userId: number; destination?: 'local' | 'db' | 'drive' }) => Promise<{ success: boolean; filePath?: string; destination?: string; fileName?: string; error?: string }>;
+        };
+    };
 }

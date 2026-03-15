@@ -1,0 +1,25 @@
+Lista de tehnologii utilizate în aplicația de licență:
+
+1. Frontend (Interfața Utilizatorului)
+- React.js (v18.2): Biblioteca principală pentru construirea interfeței grafice.
+- React Router DOM: Pentru gestionarea navigării între diferitele pagini ale aplicației.
+- Tailwind CSS (v4) & PostCSS: Framework de utilitare CSS pentru o stilizare rapidă și modernă.
+- Vite: Tool de build și mediu de dezvoltare (dev server) extrem de rapid.
+- React Player: Pachet folosit pentru redarea și vizualizarea fișierelor media (video) în aplicație.
+
+2. Aplicație Desktop (Core)
+- Electron.js: Framework-ul care permite rularea aplicației web ca o aplicație desktop de sine stătătoare.
+- Vite-plugin-electron / vite-plugin-electron-renderer: Pachete pentru integrarea Vite cu structura specifică Electron.
+
+3. Bază de Date Locală
+- SQLite (prin pachetul better-sqlite3): Bază de date relațională rapidă, care rulează local, folosită pentru stocarea detaliilor despre înregistrări, structura de foldere și conturile locale.
+
+4. Procesare Media (Video/Audio)
+- FFmpeg (via fluent-ffmpeg și ffmpeg-static): Unelte puternice integrate pentru manipularea, conversia și prelucrarea fișierelor video rezultate în urma înregistrării ecranului/camerei.
+
+5. Integrare Cloud și Securitate
+- Google APIs & Google Auth Library: Folosite pentru autentificarea cu Google și încărcarea/vizualizarea fișierelor direct pe/din Google Drive.
+- bcryptjs: Librărie folosită pentru securizarea (hash-uirea) parolelor utilizatorilor stocate în baza de date locală.
+
+6. Limbaj de Programare
+- TypeScript: Folosit peste tot în aplicație (atât frontend cât și procesul principal Electron) pentru a oferi tipizare statică, reducând substanțial erorile și îmbunătățind experiența de dezvoltare.

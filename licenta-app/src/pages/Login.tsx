@@ -27,7 +27,7 @@ const Login = () => {
         const { username, password, confirmPassword, hint } = formData;
 
         if (!username || !password) {
-            setError('Te rog completează toate câmpurile obligatorii');
+            setError('Vă rog completați toate câmpurile obligatorii');
             return;
         }
 
@@ -42,7 +42,7 @@ const Login = () => {
                 if (result.success) {
                     setIsRegistering(false);
                     setError(null);
-                    alert('Cont creat cu succes! Te rog autentifică-te.');
+                    alert('Cont creat cu succes! Vă rog să vă autentificați.');
                 } else {
                     setError(result.error || 'Înregistrare eșuată');
                 }
@@ -130,7 +130,7 @@ const Login = () => {
                     {isRegistering && (
                         <>
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-400">Confirmă Parola</label>
+                                <label className="block text-sm font-medium mb-1 text-gray-400">Confirmați parola</label>
                                 <input
                                     name="confirmPassword"
                                     type="password"
@@ -141,7 +141,7 @@ const Login = () => {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-400">Indiciu Parolă</label>
+                                <label className="block text-sm font-medium mb-1 text-gray-400">Indiciu parolă</label>
                                 <input
                                     name="hint"
                                     type="text"
@@ -164,13 +164,13 @@ const Login = () => {
 
                 <div className="mt-6 text-center text-sm text-gray-400">
                     <p>
-                        {isRegistering ? 'Ai deja cont?' : "Nu ai cont?"}
+                        {isRegistering ? 'Aveți deja cont?' : "Nu aveți cont?"}
                         <button
                             type="button"
                             onClick={() => { setIsRegistering(!isRegistering); setError(null); setHintDisplay(null); }}
                             className="ml-2 text-blue-400 hover:text-blue-300 font-medium hover:underline"
                         >
-                            {isRegistering ? 'Conectare' : 'Înregistrează-te'}
+                            {isRegistering ? 'Conectare' : 'Înregistrare'}
                         </button>
                     </p>
                     {!isRegistering && (
@@ -179,7 +179,7 @@ const Login = () => {
                             onClick={handleForgotPassword}
                             className="mt-2 text-gray-500 hover:text-gray-400 cursor-pointer hover:underline"
                         >
-                            Ai uitat parola?
+                            Ați uitat parola?
                         </button>
                     )}
                 </div>
@@ -194,7 +194,7 @@ const Login = () => {
                         }}
                         className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded-lg transition-colors"
                     >
-                        Continuă ca Oaspete
+                        Continuați ca oaspete (neautentificat)
                     </button>
                 </div>
             </div>

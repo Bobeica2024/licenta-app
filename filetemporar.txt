@@ -1,0 +1,219 @@
+ 
+
+Academia de Studii Economice din București 
+
+Facultatea de Cibernetică, Statistică și Informatică Economică 
+
+Specializarea Informatică Economică 
+
+ 
+
+Sistem informatic pentru gestiunea fluxurilor audio-video 
+
+ 
+
+ 
+
+Coordonator 
+
+Prof. Univ. Dr. Marian Dârdală 
+
+Absolvent 
+
+Ștefan Alexandru Bobeică 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+ 
+
+București 2026 
+
+Introducere 
+
+1.1. Motivație și context 
+
+În contextul digitalizării accelerate din ultimii ani, consumul de conținut multimedia a devenit principala formă de informare și educație. Platformele importante de streaming video, în special YouTube, găzduiesc cantități impresionante de informație video, de la cursuri universitare și tutoriale tehnice, până la conferințe și transmisiuni în timp real. Totuși, această abundență de conținut generează o nouă provocare, dificultatea de a filtra și arhiva doar informația esențială. 
+
+Adesea, utilizatorii, fie studenți, fie profesori sau cercetători, au nevoie să rețină doar anumite secvențe dintr-un material video extins, fără a fi nevoiți să descarce sau să stocheze întregul fișier, care poate avea dimensiuni considerabile. Pentru un student care urmărește un curs online de două ore, este esențial să poată extrage și salva doar cele câteva minute în care este explicat un concept cheie, pentru a-și construi o bibliotecă de materiale de studiu eficientă. O astfel de bibliotecă îi poate fi de folos și în cazul în care acesta dorește să învețe într-un moment în care nu are acces la internet. Similar, un profesor poate dori să exemplifice o noțiune teoretică printr-un fragment video scurt, preluat dintr-o sursă externă, fără a depinde de o conexiune la internet în timpul predării.  
+
+Motivația dezvoltării acestui sistem informatic rezidă tocmai în necesitatea unei soluții software standalone, capabile să intermedieze facil conexiunea la aceste fluxuri (stream-uri) și să ofere instrumente precise de înregistrare selectivă. Spre deosebire de soluțiile clasice de descărcare, care implică timpi mari de așteptare și spațiu de stocare irosit, aplicația propusă se concentrează pe agilitate și precizie: identificarea, extragerea și organizarea strictă a fragmentelor de interes.  
+
+1.2. Organizarea proiectului 
+
+Obiectivul general al proiectului este proiectarea și implementarea unei aplicații desktop robuste pentru gestionarea fluxurilor audio-video, care să îmbine performanța tehnologiilor native cu flexibilitatea ecosistemului Web (Electron.js). 
+
+Obiectivele specifice ale sistemului includ: 
+
+1. Interconectivitate și captură:  
+
+Realizarea unui modul capabil să se conecteze la surse de streaming externe, având ca studiu de caz principal platforma Youtube, și să permită înregistrarea în timp real a unor intervale definite de utilizator. 
+
+ 
+
+ 
+
+2. Flexibilitate în utilizare (arhitectură hibridă): 
+
+Aplicația poate fi utilizată fie în mod neautentificat (Guest), pentru sarcini rapide de extragere și salvare fizică, fie în mod autentificat, oferind persistența datelor și funcționalități avansate de gestiune.  
+
+3. Independență și portabilitate:  
+
+Sistemul informatic asigură funcționarea aplicației în regim offline pentru gestionarea arhivei locale. Deși capturarea necesită conexiune la internet, organizarea, vizualizarea și managementul fragmentelor salvate într-o bază de date locală SQLite trebuie să fie disponibile oricând, eliminând dependența permanentă de Cloud.  
+
+4. Organizare și stocare eficientă:  
+
+Aplicația vine cu opțiuni versatile de salvare a fragmentelor, atât local, pe dispozitivul utilizatorului pentru acces rapid, cât și în Cloud, prin integrarea Google Drive API pentru portabilitate și backup. Mai mult, pentru utilizatorii autentificați, sistemul permite structurarea logică a materialelor în foldere și atașarea de metadate, transformând aplicația dintr-un simplu recorder într-un veritabil asistent de studiu sau lucru.  
+
+Prin acest mod de funcționare, sistemul informatic propus răspunde unei nevoi acute de eficiență în gestionarea informației digitale, oferind o unealtă puternică atât pentru mediul academic, cât și pentru utilizatorii obișnuiți care doresc să-și structureze propriul conținut multimedia.  
+
+Fundamente teoretice și tehnologii utilizate 
+
+2.1. Arhitecturi moderne pentru aplicații desktop: Electron.js 
+
+Dezvoltarea aplicațiilor desktop a suferit o schimbare de paradigmă semnificativă în ultimul deceniu. Tradițional, aceasta implica utilizarea unor limbaje native specifice sistemului de operare (C# sau .NET pentru Windows, Objective-C sau Swift pentru macOS), ceea ce determina fragmentarea codului și costuri ridicate de mentenanță. Soluția modernă adoptată de industria software este utilizarea arhitecturilor hibride, capabile să ruleze pe platforme multiple (Cross-Platform) utilizând o bază de cod comună. 
+
+Electron.js este un cadru de lucru (framework) open-source dezvoltat de GitHub, care permite crearea de aplicații desktop native folosind tehnologii web, precum HTML, CSS și JavaScript. Arhitectura Electron se distinge prin modelul său multi-process, derivat din browserul Chromium. Aceasta separă strict responsabilitățile în două tipuri de procese:  
+
+1. Procesul principal, care rulează într-un mediu Node.js și are rolul de a gestiona ciclul de viață al aplicației, ferestrele native și interacțiunea cu sistemul de operare. 
+
+2. Procesul de randare, care este responsabil exclusiv de afișarea interfeței grafice, rulând o instanță de Chromium. Din motive de securitate, acest proces are acces limitat la resursele native ale sistemului. 
+
+Comunicarea dintre aceste procese se realizează printr-un mecanism de transmitere a mesajelor numite IPC (Inter-Process Communication), asigurând o izolare care previne blocarea întregii aplicații în cazul unei erori de instanță. 
+
+Inițial, Electron a fost construit pentru Atom și este cadrul de lucru principal din spatele altor proiecte open-source, precum GitHub Desktop, Light Table, WordPress Desktop, Eclipse Theia, dar a fost folosit și în dezvoltarea unor platforme de comunicare în timp real, precum Discord și Slack. Arhitectura Discord se bazează pe Electron pentru a oferi o experiență cross-platform identifcă pe Windows, macOs și Linux, integrând funcționalități complexe precum streaming video cu latență scăzută, suprapunere grafică în jocuri și procesare audio avansată. Aceasta demonstrează că Electron poate gestiona fluxuri audio-video în timp real fără probleme de performanță majore, lucru pe care îl face și sistemul meu informatic. Slack, platformă de colaborare destinată mediului enterprise, care centralizează comunicarea echipei prin canale tematice, mesagerie instantanee și partajare de fișiere, este de asemenea construit pe baza Electron. Slack utilizează tehnologii web pentru a asigura interoperabilitatea cu sute de servicii terțe (API Integrations), menținând în același timp accesul la funcționalități native ale sistemului de operare, precum notificările push și gestionarea ferestrelor multiple. Aceasta demonstrează capacitatea Electron de a gestiona baze de date locale mari, precum cache-ul de mesaje și integrarea cu sistemul de fișiere, cu upload sau download, exact cum aplicația aceasta face cu salvarea fragmentelor.  
+
+2.2. Procesarea și manipularea fluxurilor audio-video 
+
+	Gestionarea conținutului video implică înțelegerea conceptelor de codec și container. Un container, ca de exemplu MP4, MKV, este un pachet care conține fluxuri video (imagine), fluxuri audio (sunet) și metadate. Pentru a reda sau a înregistra un stream de pe o platformă precum YouTube, este necesară manipularea acestor date în timp real. 
+
+	FFmpeg este soluția standard în industrie pentru procesarea multimedia. Acesta este un framework complet, capabil să decodeze, encodeze, transcodeze, mixeze și să redea fișiere media. În cadrul aplicației, FFmpeg este utilizat ca motor de backend pentru: 
+
+	1. Captură: Preia fluxul de date de la URL-ul sursă. 
+
+	2. Trimming (Tăiere): Extrage exact intervalul selectat de utilizator, de la apăsarea butonului Start până la apăsarea butonului Stop. 
+
+	3. Remuxing: Împachetează datele într-un format compatibil, precum .mp4, fără a re-encoda videoclipul, ceea ce asigură o viteză de procesare foarte mare și păstrează calitatea originală a sursei. 
+
+	Utilizarea FFmpeg prin intermediul Node.js permite aplicației să execute comenzi complexe de procesare video în fundal, fără a bloca interfața utilizatorului. 
+
+	FFmpeg este un proiect gratis și open-source care constă într-o multitudine de biblioteci și programe pentru gestionarea video, audio și alte fișiere multimedia și stream-uri. Are ca nucleu unealta de tip command-line numită tot ffmpeg, creată pentru procesare de fișiere video și audio. Este utilizat pe larg pentru transcodarea formatului, editare elementară (pentru decupare și concatenare), scalare video, pentru modificarea aspectului unui video după producerea sa și respectarea standardelor SMTPE și ITU. 
+
+	Alte unelte incluse în FFmpeg sunt: ffplay, un player media simplu și ffprobe, o unealtă de tip command-line pentru afișarea informației media. Printre bibliotecile incluse mai sunt și libravcodec, o bibliotecă codec de audio/video utilizată de multe produse software gratuite și comericale, libravformat (Lavf), o bibliotecă multiplex container audio/video, dar și libavfilter, o bibliotecă pentru îmbunătățirea și editarea filtrelor printr-un filtrugraf similar cu GStream.  
+
+	FFmpeg este parte a fluxului de lucru a multor altor proiecte software, iar bibliotecile sale sunt o componentă esențială a programelor de tip media player precum VLC și a fost inclus în procesarea de bază pentru YouTube și Bilibili. Codificatoare și decodificatoare pentru multe formate de fișiere audio și video sunt incluse, făcându-l foarte util pentru transcodarea a fișiere media cu formate mai utilizate și mai puțin utilizate. 
+
+	FFmpeg a fost publicat sub licența mai puțin general publică GNU 2.1 sau licența general publică GNU 2.0, în funcție de ce opțiuni sunt disponibile.  
+
+	Proiectul a fost început de Fabrice Bellard în 2000 și a fost condus de Michael Niedermayer din 2004 până în 2015. Unii dezvoltatori FFmpeg au lucrat, de asemenea, la proiectul MPlayer, un media player gratis și open-source, disponibil pentru Linux, mac și Windows. 
+
+	Literele ,,FF” din FFmpeg vin de la ,,fast-forward”. Logo-ul FFmpeg reprezintă un model de scanare în zigzag care arată cum codecurile MPEG de video gestionează entropia codificării.  
+
+	Proiectul lansează o nouă versiune, în medie, o dată la trei luni. Deși versiunile stabile sunt disponibile pentru descărcare de pe site, dezvoltatorii FFmpeg recomandă utilizatorilor să compileze software-ul direct din sursă, folosind cel mai recent cod disponibil prin sistemul de control al versiunilor Git. 
+
+	Până în prezent, în cadrul proiectului FFmpeg au fost create două formate de codare video, cu codecurile aferente, și un format container. Cele două codecuri video sunt FFV1, care este fără pierderi / lossless și codecul Snow, care funcționează atât cu pierderi, cât și fără. Dezvoltarea codecului Snow a stagnat, iar formatul fluxului său de biți (bit-stream) nu a fost încă definitivat, acesta fiind considerat experimental încă din 2011. Formatul de container multimedia numit NUT nu mai este dezvoltat activ, însă este în continuare menținut. 
+
+În vara anului 2010, dezvoltatorii FFmpeg Fiona Glaser, Ronald Bultje și David Conrad au anunțat lansarea decodorului ffvp8. În urma testelor, aceștia au stabilit că ffvp8 era mai rapid decât propriul decodor libvpx al celor de la Google. Începând cu versiunea 0.6, FFmpeg a oferit suport și pentru WebM și VP8. 
+
+În octombrie 2013, au fost adăugate în FFmpeg un decodor nativ VP9 și OpenHEVC, un decodor open-source pentru High Efficiency Video Coding (HEVC). În 2016, codorul nativ AAC a fost declarat stabil, ceea ce a dus la eliminarea suportului pentru cele două codecuri AAC externe de la VisualOn și FAAC. Versiunea FFmpeg 3.0, denumită „Einstein”, a păstrat însă compatibilitatea la compilare pentru codorul Fraunhofer FDK AAC. Începând cu versiunea 3.4 „Cantor”, FFmpeg oferă suport pentru formatul de imagine FITS. Din noiembrie 2018, odată cu versiunea 4.1 „al-Khwarizmi”, fluxurile AV1 pot fi împachetate/muxate în containere MP4 și Matroska, inclusiv WebM.” 
+
+2.3. Platforma Node.js în contextul aplicației mele 
+
+	Node.js este un mediu de execuție pentru JavaScript, construit pe motorul V8 de la Google Chrome. Deși inițial a fost conceput pentru dezvoltarea aplicațiilor web scalabile pe partea de server (backend), Node.js a devenit o componentă fundamentală în dezvoltarea aplicațiilor desktop moderne prin intermediul framework-ului Electron. 
+
+Spre deosebire de execuția JavaScript într-un browser web standard, unde codul este izolat într-un mediu securizat (sandbox) și nu are acces direct la resursele sistemului de operare, Node.js oferă acces nerestricționat la sistemul de fișiere, rețea și procese native. Această capacitate transformă JavaScript dintr-un limbaj de scripting pentru interfețe web într-un limbaj capabil să gestioneze operațiuni complexe de sistem. 
+
+Elementul distinctiv al Node.js este modelul său de execuție bazat pe o buclă de evenimente (Event Loop) și Input/Output non-blocant. Într-o aplicație tradițională multi-threaded, o operațiune greoaie, cum ar fi scrierea unui fișier video pe disc, ar bloca execuția programului până la finalizare. Node.js gestionează aceste operațiuni asincron: lansează comanda de scriere și continuă execuția restului aplicației, fiind notificat printr-un „callback” sau „Promise” doar în momentul finalizării scrierii. 
+
+În cadrul sistemului informatic dezvoltat, Node.js nu este utilizat doar ca suport de execuție, ci furnizează bibliotecile standard necesare funcționării, precum modulul fs (File System), modulul child_process, modulul path și modulul stream. 
+
+Modulul fs (File System) este esențial pentru persistența datelor. Prin intermediul acestui modul, aplicația poate crea, scrie și șterge fișierele video rezultate în urma înregistrării (.mp4), precum și baza de date locală SQLite (.db). 
+
+Modulul child_process permite aplicației să lanseze și să controleze procese externe sistemului de operare. Acesta este mecanismul prin care aplicația interacționează cu FFmpeg. Node.js pornește FFmpeg ca un proces separat (child process), îi trimite parametrii de înregistrare și monitorizează ieșirea acestuia (stdout/stderr) pentru a detecta erori sau finalizarea conversiei. 
+
+Modulul path asigură compatibilitatea căilor de fișiere între diferite sisteme de operare (Windows folosește backslash \, în timp ce macOS/Linux folosesc forward slash /). Utilizarea acestui modul garantează că aplicația este portabilă (Cross-Platform). 
+
+Modulul stream gestionează fluxurile de date. Atunci când aplicația descarcă un fragment video sau îl încarcă pe Google Drive, datele nu sunt încărcate integral în memoria RAM, ceea ce ar bloca sistemul în cazul fișierelor mari, ci sunt procesate secvențial, pachet cu pachet (chunk by chunk), optimizând consumul de resurse. 
+
+Ecosistemul Node.js include NPM (Node Package Manager), cel mai mare registru de biblioteci software din lume. Aplicația utilizează NPM pentru a integra pachete terțe verificate, precum fluent-ffmpeg (pentru abstractizarea comenzilor FFmpeg), sqlite3 (driverul pentru baza de date) și googleapis (pentru autentificarea OAuth 2.0 și interacțiunea cu Drive). 
+
+Motivul pentru care am decis utilizarea Node.js în acest sistem informatic este arhitectura sa non-blocantă, care îmi permite să înregistrez video, operațiune intensivă, fără să blochez interfața aplicației, și pentru accesul nativ la child_process, vital pentru integrarea cu FFmpeg.  
+
+2.4. Tailwind CSS în contextul aplicației mele 
+
+	Pentru a construi mai simplu interfața aplicației, am ales Tailwind CSS. Această tehnologie permite utilizarea claselor utilitare direct în codul lor HTML, eliminând nevoia pentru stiluri personalizate. Prin abordarea bazată pe utilități, Tailwind permite crearea unor designuri personalizate fără a scrie cod CSS manual, ceea ce eficientizează considerabil procesul de dezvoltare. Designul adaptiv implicit al Tailwind simplifică crearea interfețelor adaptabile la orice ecran, folosind clase utilitare predefinite. De asemenea, Tailwind oferă un control detaliat asupra aspectului, permițând o personalizare fină și o prototipare rapidă. Tailwind diminuează drastic necesitatea fișierelor CSS externe voluminoase, menținând astfel o bază de cod compactă, organizată și ușor de gestionat. Spre deosebire de foile de stil tradiționale, utilizarea claselor utilitare permite modificarea punctuală a elementelor, eliminând riscul efectelor secundare globale, precum „cascada” nedorită, specifice foilor de stil tradiționale.  
+
+	Alte avantaje ale Tailwind CSS constau atât în complexitatea sa scăzută, cât și în flexibilitatea sa. Nu mai este necesară respectarea unor convenții stricte de denumire pentru clase sau ID-uri, precum metodologia BEM, ceea ce reduce sarcina cognitivă a dezvoltatorului. De asemenea, framework-ul facilitează adaptarea designului și crearea de componente modulare, refolosibile, fără a impune scrierea de cod CSS suplimentar, iar clasele sunt optimizate implicit pentru diverse rezoluții, permițând dezvoltatorilor să implementeze interfețe compatibile cu dispozitivele mobile fără efort. 
+
+	Un aspect tehnic fundamental al Tailwind CSS este motorul său de compilare Just-In-Time (JIT). Spre deosebire de framework-urile tradiționale care necesită încărcarea unor fișiere CSS statice voluminoase, motorul JIT scanează fișierele HTML și JavaScript în timp real, generând stilurile strict necesare în momentul compilării. Această abordare permite utilizarea unor valori arbitrare, ca de exemplu, o lățime specifică de w-[350px], fără a necesita scrierea de CSS personalizat, menținând în același timp dimensiunea fișierului final la un nivel minim, care este adesea sub 10KB în producție. 
+
+Tailwind CSS funcționează ca un generator de sisteme de design, controlat centralizat prin fișierul tailwind.config.js. Această arhitectură permite definirea variabilelor globale ale proiectului, ca paleta de culori, tipografia, spațierea și punctele de întrerupere (breakpoints) pentru designul adaptiv. Prin centralizarea acestor decizii de stil, se asigură o consistență vizuală strictă la nivelul întregii aplicații și se elimină valorile "magice" sau hard-codate care pot duce la discrepanțe estetice. 
+
+Deși paradigma utility-first încurajează scrierea stilurilor direct în HTML, Tailwind oferă mecanisme pentru gestionarea repetiției și curățarea codului. Prin utilizarea directivei @apply în fișierele CSS, combinațiile frecvente de clase utilitare pot fi extrase în clase CSS semantice, ca de exemplu, definirea unei clase .btn-primary care moștenește proprietățile utilitare. Această metodă hibridă oferă un echilibru între viteza de dezvoltare și lizibilitatea codului, fiind utilă în special pentru elementele de interfață recurente. 
+
+Adoptarea framework-ului Tailwind CSS susține o arhitectură modulară a interfeței grafice, aliniindu-se paradigmei moderne de dezvoltare bazată pe componente. Prin abordarea sa de tip utility-first, stilizarea este decuplată de fișierele CSS globale și aplicată direct la nivelul structurii HTML. Această metodologie asigură o încapsulare reală a elementelor vizuale; astfel, aspectul grafic devine intrinsec componentei funcționale. Din perspectiva mentenanței software, acest lucru conferă o portabilitate ridicată codului: relocarea sau reutilizarea unui modul (de exemplu, panoul de control al înregistrării) în diverse secțiuni ale aplicației nu necesită refactorizarea unor foi de stil externe, eliminând riscul de conflicte vizuale și reducând complexitatea dezvoltării. 
+
+Pentru stilizarea interfeței utilizator, am optat pentru Tailwind CSS, o soluție care facilitează dezvoltarea rapidă și consistentă a componentelor vizuale. Întrucât aplicația este structurată modular, având secțiuni distincte pentru player, bibliotecă și setări, Tailwind permite definirea stilurilor direct în marcajul HTML, eliminând dependența de fișiere CSS externe voluminoase. Această abordare garantează independența componentelor. De exemplu, un element de interfață complex, precum cardul unui fragment video, își păstrează integritatea vizuală indiferent de locul în care este randat în aplicație. Astfel, procesul de refactorizare devine mult mai sigur, iar codul sursă rămâne curat și ușor de gestionat pe termen lung. 
+
+2.5. React.js în contextul aplicației mele, pe partea de front-end 
+
+	React.js este o bibliotecă JavaScript open-source, dezvoltată și menținută de Meta, anterior Facebook, specializată în construirea interfețelor utilizator interactive, în special pentru aplicațiile de tip Single-Page Application. Arhitectura sa fundamentală se bazează pe descompunerea interfeței grafice în unități funcționale independente și reutilizabile, denumite componente, care gestionează propria stare și logică de randare. 
+
+	React are ca element central componenta, o entitate autonomă care încapsulează structura vizuală (HTML/JSX), stilizarea și logica comportamentală. Această abordare promovează principiul „Separation of Concerns” (Separarea responsabilităților), care presupune ca în loc să separe tehnologiile în fișiere distincte, de tipul html, css, js, React separă funcționalitățile logice. Această arhitectură vine cu anumite avantaje, precum reutilizabilitatea codului, mentenanța și testarea și scalabilitatea. 
+
+	Reutilizabilitatea codului presupune că în React, componentele pot fi instanțiate multiplu în diferite părți ale aplicației sau chiar în proiecte diferite, reducând redundanța și asigurând consistența vizuală. 
+
+	Arhitectura modulară a React.js facilitează o mentenanță predictibilă și eficientă. Deoarece fiecare componentă funcționează ca o unitate autonomă, izolată de restul sistemului prin intermediul propriului domeniu de vizibilitate/scope, riscul propagării erorilor în cascadă este redus semnificativ. 
+
+	În ceea ce privește testarea unitară, această izolare permite verificarea funcționalității fiecărei componente în mod independent, fără a necesita rularea întregii aplicații. Utilizând biblioteci dedicate precum Jest sau React Testing Library, se pot simula intrările de date (props) și se poate analiza dacă ieșirea (output-ul vizual sau declanșarea evenimentelor) este conformă cu specificațiile, într-un mediu controlat. Această abordare deterministă elimină variabilele externe și permite identificarea rapidă a regresiilor, situații în care o modificare nouă afectează o funcționalitate veche. 
+
+Procesul de depanare/debugging este, de asemenea, simplificat prin utilizarea instrumentelor de dezvoltare specifice (React Developer Tools), care permit inspecția ierarhiei de componente în timp real. Astfel, o eroare de randare într-un modul complex, cum ar fi player-ul video, poate fi trasată exact până la sursă, fie că este vorba de o stare internă coruptă sau de o proprietate transmisă eronat, fără a fi necesară analiza întregului cod sursă al paginii. 
+
+Unul dintre avantajele majore ale arhitecturii React.js este capacitatea de a gestiona scalabilitatea aplicațiilor prin paradigma compoziției. Spre deosebire de modelele tradiționale de programare orientată pe obiecte, care se bazează adesea pe lanțuri complexe de moștenire, React încurajează construirea interfețelor utilizator prin asamblarea unor piese funcționale mici și specializate în structuri ierarhice complexe. 
+
+Această abordare permite descompunerea unei interfețe monolitice, cum ar fi o pagină întreagă de dashboard, într-un arbore de componente atomice, precum butoane, intrări de text, carduri de afișare. Componentele simple, definite o singură dată, pot fi imbricate și reutilizate în contexte variate, comportându-se ca niște „cărămizi” software. De exemplu, o componentă VideoPlayer poate include intern componentele PlayButton, ProgressBar și VolumeControl. Această modularitate nu doar că reduce redundanța codului, dar facilitează semnificativ gestionarea bazelor de cod extinse, permițând echipelor de dezvoltare să lucreze în paralel pe module distincte fără a genera conflicte de integrare. Mai mult, fluxul datelor în aceste structuri ierarhice este strict controlat prin mecanismul de proprietăți (props), asigurând că starea aplicației rămâne predictibilă chiar și pe măsură ce complexitatea sistemului crește exponențial. 
+
+Spre deosebire de programarea imperativă, unde dezvoltatorul trebuie să specifice explicit pașii pentru actualizarea interfeței, ca de exemplu selectarea unui element DOM și modificarea atributelor sale, React adoptă o paradigmă declarativă. Dezvoltatorul descrie cum ar trebui să arate interfața pentru o anumită stare a datelor, iar React se ocupă automat de actualizarea DOM-ului atunci când starea se modifică. Această abordare face codul mai predictibil și mai ușor de înțeles.  
+
+Eficiența acestui proces este asigurată de conceptul de DOM Virtual. Acesta reprezintă o copie abstractă, stocată în memorie, a DOM-ului real. Ciclul de actualizare al interfeței este guvernat de un mecanism sofisticat de sincronizare. În momentul în care intervine o modificare a stării interne sau a proprietăților, React generează instantaneu o nouă reprezentare a arborelui Virtual DOM. Această nouă instanță este supusă unui proces de comparație cu versiunea anterioară, utilizând un algoritm euristic de diferențiere (Diffing Algorithm) optimizat pentru performanță. Ulterior, faza de reconciliere izolează strict elementele care au suferit modificări și aplică chirurgical aceste schimbări asupra DOM-ului real (Browser DOM). Această strategie elimină redundanța și previne re-randarea costisitoare a întregii pagini, asigurând o experiență de utilizare fluidă chiar și în aplicații cu o complexitate ridicată. 
+
+2.6. Vite.js în contextul aplicației mele 
+
+Vite este un server de dezvoltare locală susținut de VoidZero Inc., dar scris de Evan You, care a creat și Vue.js. Oferă suport pentru TypeScript și JSX, iar pe plan intern utilizează Rollup și esbuild pentru procesul de împachetare a codului (bundling).  
+
+Funcționarea sa se bazează pe monitorizarea în timp real a fișierelor editate. În momentul salvării, browserul actualizează codul modificat printr-un proces denumit Hot Module Replacement (HMR). Acest mecanism funcționează prin reîncărcarea strictă a fișierului asupra căruia s-a intervenit, utilizând module ES6 (ESM), eliminând astfel necesitatea ineficientă de a recompila întreaga aplicație. 
+
+Vite include suport integrat pentru randarea pe partea de server (SSR). În mod implicit, acesta operează pe portul TCP 5173, însă poate fi configurat să livreze conținut prin protocolul securizat HTTPS și să acționeze ca proxy pentru cereri, inclusiv WebSocket, către un server web de back-end, precum Apache HTTP Server sau lighttpd. Sistemul său HMR reduce semnificativ timpii de așteptare în timpul procesului de dezvoltare. Vite asigură compatibilitatea cu framework-uri moderne precum React, Vue și Svelte, oferind funcționalități esențiale precum randarea pe server (SSR), divizarea codului (code-splitting) și încărcarea asincronă. 
+
+În mod tradițional, uneltele de build, precum Webpack sau Parcel, trebuiau să parcurgă toată aplicația, să o împacheteze într-un singur fișier (bundle) și abia apoi să o servească browserului. Numai o schimbare de linie de cod făcea procesul să se reia. Acum, în Vite, modulele ES Native sunt folosite direct în browser în timpul dezvoltării. Spre deosebire de abordările tradiționale care necesitau împachetarea (bundling) întregii aplicații înainte de pornirea serverului, Vite deleagă responsabilitatea importării modulelor direct către browser. Astfel, codul sursă este servit la cerere. Serverul compilează și livrează doar fișierul specific solicitat de browser în acel moment, rezultând un timp de pornire (cold start) aproape instantaneu, independent de mărimea totală a proiectului.  
+
+Vite adoptă o arhitectură hibridă pentru gestionarea dependențelor. Pentru mediul de dezvoltare, utilizează esbuild, un compilator scris în limbajul Go, capabil să pre-proceseze dependențele de 10 până la 100 de ori mai rapid decât alternativele bazate pe JavaScript. Însă, pentru compilarea finală de producție, comanda npm run build, Vite comută automat către Rollup. Această alegere strategică asigură o optimizare superioară a codului final prin tehnici avansate precum tree-shaking, adică eliminarea codului neutilizat și încărcarea asincronă a modulelor (lazy-loading), garantând fișiere finale cât mai compacte. 
+
+Dincolo de rolul său de compilator, Vite simplifică gestionarea configurațiilor de mediu. Acesta expune variabilele de mediu în mod securizat prin interfața import.meta.env, prevenind scurgerea accidentală a cheilor sensibile în codul clientului. Doar variabilele prefixate cu VITE_ sunt expuse. De asemenea, rezolvă automat importurile complexe din node_modules, rescriind căile (path rewriting) astfel încât browserul să poată localiza corect dependențele instalate, un proces care în mod normal ar necesita configurări manuale laborioase. 
+
+3. Persistența și gestiunea datelor  
+
+	3.1. Stocarea locală 
+
+Pentru asigurarea persistenței datelor în regim local, s-a optat pentru utilizarea SQLite. Spre deosebire de sistemele de baze de date tradiționale, precum MySQL sau PostgreSQL, care funcționează pe arhitectura client-server, SQLite este un motor de bază de date relațională încorporat ("embedded"). Întreaga bază de date este stocată într-un singur fișier pe disc, ceea ce oferă portabilitate totală și elimină necesitatea configurării unui serviciu de baze de date separat pe stația utilizatorului. SQLite respectă proprietățile ACID (Atomicity, Consistency, Isolation, Durability), garantând integritatea tranzacțiilor chiar și în cazul unor întreruperi de sistem. Alte caracteristici ale acestuia sunt faptul că nici o setare sau administrare nu e necesară, implementează o mare parte a SQL92, dar totuși unele caracteristici sunt nesuportate, iar o bază de date întreagă este stocată într-un singur fișier pe HDD.  
+
+SQLite este un motor gratis și open-source de bază de date relațională dezvoltat în limbajul de programare C. Nu este o aplicație standalone, ci mai degrabă o bibliotecă pe care dezvoltatorii software o încorporează în aplicațiile lor. Astfel, aparține unei familii de baze de date încapsulate. După cum spun dezvoltatorii săi, SQLite este cel mai larg răspândit motor de bază de date, fiind utilizat de multe dintre cele mai populare browsere web, sisteme de operare, telefoane mobile și alte sisteme încapsulate. Întreaga bază de date este stocată într-un singur fișier de pe HDD și suportă baze de date de până la 2 terraocteți, mai exact 241 în mărime. Mărimea șirurilor și  BLOB-urile sunt limitate doar de memoria disponibilă. Alte avantaje pe care le oferă acest model de bază de date relațională sunt reprezentate de API-ul simplu, ușor de folosit și este mai rapid decât bazele de date client/server cunoscute pentru majoritatea operațiilor obișnuite. Legăturile TCL sunt incluse și are legături către alte multe limbaje disponibile separat. Este încapsulat, deci nu are dependențe externe, iar sursele sunt în domeniul public și poate fi folosit pentru orice scop.  
+
+SQLite funcționează compilând text SQL în bytecode, apoi rulând acel bytecode folosind o mașină virtuală. Atât sqlite3 prepare v2, cât și alte interfețe similare funcționează ca un compilator pentru convertirea de text SQL în bytecode. Obiectul sqlite3 smt este un container pentru un singur program bytecode care implementează un singur statement SQL. Interfața sqlite3 step pasează un program bytecode în mașina virtuală și rulează programul până ori completează, ori formează un rând de rezultat pentru a fi returnat, ori intră într-o eroare fatală, ori este întrerupt.  
+
+3.2. Autorizarea Cloud 
+
+Interacțiunea cu serviciile Google Drive se bazează pe protocolul OAuth 2.0, un standard deschis pentru delegarea accesului. Acest protocol permite aplicației să acționeze în numele utilizatorului fără a avea acces la parola acestuia. Fluxul utilizat, ,,Authorization Code Flow”, implică schimbul unui cod de autorizare temporar pentru un Access Token, utilizat pentru încărcarea fișierelor, și un Refresh Token, utilizat pentru a menține sesiunea activă. Această abordare securizează datele utilizatorului și respectă standardele actuale de protecție a identității digitale. 
+
+OAuth 2.0 este protocolul standard de industrie pentru autorizare. OAuth 2.0 se focusează pe simplicitatea dezvoltării clientului în timp ce asigură fluxurile de autorizare specifice pentru aplicații web, aplicații desktop, telefoane mobile și dispozitive pentru camera de zi. Această specificație și extensiile sale sunt dezvoltate în interiorul IETF OAuth Working Group.  
+
+API-urile Google folosesc protocolul OAuth 2.0 pentru autentificare și autorizare. Google acceptă scenarii comune OAuth 2.0 precum cele pentru server web, pentru partea de client și aplicații pentru dispozitive cu mijloace de control limitate.  
+
+ 

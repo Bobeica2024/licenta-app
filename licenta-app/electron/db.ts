@@ -1,6 +1,9 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import { app } from 'electron';
+import bcrypt from 'bcryptjs';
+
+const SALT_ROUNDS = 10;
 
 const dbPath = path.join(app.getPath('userData'), 'database.sqlite');
 const db = new Database(dbPath);
@@ -12,7 +15,8 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    hint TEXT
+    hint TEXT,
+    is_admin BOOLEAN DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS folders (
@@ -30,6 +34,7 @@ db.exec(`
     user_id INTEGER,
     folder_id INTEGER,
     title TEXT NOT NULL,
+    type TEXT DEFAULT 'video',
     source_url TEXT,
     file_path TEXT,
     drive_id TEXT,
@@ -37,17 +42,48 @@ db.exec(`
     FOREIGN KEY(user_id) REFERENCES users(id),
     FOREIGN KEY(folder_id) REFERENCES folders(id) ON DELETE SET NULL
   );
+
+  CREATE TABLE IF NOT EXISTS history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    action_type TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
 `);
 
-// Migration: Add folder_id to fragments if it doesn't exist
 try {
-  const columns = db.pragma('table_info(fragments)') as { name: string }[];
-  const hasFolderId = columns.some(c => c.name === 'folder_id');
-
-  if (!hasFolderId) {
+  // Migrate fragments
+  const fragmentsCols = db.pragma('table_info(fragments)') as { name: string }[];
+  if (!fragmentsCols.some(c => c.name === 'folder_id')) {
     console.log('Migrating database: Adding folder_id to fragments table');
     db.exec('ALTER TABLE fragments ADD COLUMN folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL');
   }
+
+  // Migrate users
+  const usersCols = db.pragma('table_info(users)') as { name: string }[];
+  if (!usersCols.some(c => c.name === 'is_admin')) {
+    console.log('Migrating database: Adding is_admin to users table');
+    db.exec('ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0');
+  }
+
+  // Migrate fragments to have type
+  if (!fragmentsCols.some(c => c.name === 'type')) {
+    console.log('Migrating database: Adding type to fragments table');
+    db.exec('ALTER TABLE fragments ADD COLUMN type TEXT DEFAULT "video"');
+  }
+
+  // Create default admin 'bobeicastefan'
+  const adminStmt = db.prepare('SELECT id FROM users WHERE username = ?');
+  const admin = adminStmt.get('bobeicastefan');
+  if (!admin) {
+    console.log('Creating default admin user...');
+    const insertAdmin = db.prepare('INSERT INTO users (username, password_hash, hint, is_admin) VALUES (?, ?, ?, ?)');
+    const hash = bcrypt.hashSync('ProGoMoRe2026', SALT_ROUNDS);
+    insertAdmin.run('bobeicastefan', hash, 'Admin default account', 1);
+  }
+
 } catch (err) {
   console.error('Migration error:', err);
 }

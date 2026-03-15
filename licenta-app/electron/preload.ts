@@ -44,14 +44,32 @@ try {
     },
     drive: {
       authenticate: () => ipcRenderer.invoke('drive:authenticate'),
-      upload: (filePath: string, tokens: any) => ipcRenderer.invoke('drive:upload', { filePath, tokens }),
+      upload: (filePath: string, tokens: any, folderId?: string, title?: string) => ipcRenderer.invoke('drive:upload', { filePath, tokens, folderId, title }),
       logout: () => ipcRenderer.invoke('drive:logout'),
       getSession: () => ipcRenderer.invoke('drive:get-session'),
+      listFolders: (parentId?: string, tokens?: any) => ipcRenderer.invoke('drive:list-folders', { parentId, tokens }),
+      sendEmail: (data: any) => ipcRenderer.invoke('drive:send-email', data)
     },
     library: {
       getContents: (data: any) => ipcRenderer.invoke('library:get-contents', data),
       createFolder: (data: any) => ipcRenderer.invoke('library:create-folder', data),
       deleteItem: (data: any) => ipcRenderer.invoke('library:delete-item', data),
+      renameItem: (data: any) => ipcRenderer.invoke('library:rename-item', data),
+      moveItem: (data: any) => ipcRenderer.invoke('library:move-item', data),
+      copyItem: (data: any) => ipcRenderer.invoke('library:copy-item', data),
+    },
+    history: {
+      add: (data: any) => ipcRenderer.invoke('history:add', data),
+      get: (data: any) => ipcRenderer.invoke('history:get', data),
+      delete: (data: any) => ipcRenderer.invoke('history:delete', data),
+      getFragmentByName: (data: any) => ipcRenderer.invoke('history:get-fragment-by-name', data),
+    },
+    admin: {
+      getUsers: (data: any) => ipcRenderer.invoke('admin:get-users', data),
+      deleteUser: (data: any) => ipcRenderer.invoke('admin:delete-user', data),
+    },
+    archive: {
+      create: (data: any) => ipcRenderer.invoke('archive:create', data),
     }
   })
 

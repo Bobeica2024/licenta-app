@@ -40,14 +40,32 @@ try {
     },
     drive: {
       authenticate: () => electron.ipcRenderer.invoke("drive:authenticate"),
-      upload: (filePath, tokens) => electron.ipcRenderer.invoke("drive:upload", { filePath, tokens }),
+      upload: (filePath, tokens, folderId, title) => electron.ipcRenderer.invoke("drive:upload", { filePath, tokens, folderId, title }),
       logout: () => electron.ipcRenderer.invoke("drive:logout"),
-      getSession: () => electron.ipcRenderer.invoke("drive:get-session")
+      getSession: () => electron.ipcRenderer.invoke("drive:get-session"),
+      listFolders: (parentId, tokens) => electron.ipcRenderer.invoke("drive:list-folders", { parentId, tokens }),
+      sendEmail: (data) => electron.ipcRenderer.invoke("drive:send-email", data)
     },
     library: {
       getContents: (data) => electron.ipcRenderer.invoke("library:get-contents", data),
       createFolder: (data) => electron.ipcRenderer.invoke("library:create-folder", data),
-      deleteItem: (data) => electron.ipcRenderer.invoke("library:delete-item", data)
+      deleteItem: (data) => electron.ipcRenderer.invoke("library:delete-item", data),
+      renameItem: (data) => electron.ipcRenderer.invoke("library:rename-item", data),
+      moveItem: (data) => electron.ipcRenderer.invoke("library:move-item", data),
+      copyItem: (data) => electron.ipcRenderer.invoke("library:copy-item", data)
+    },
+    history: {
+      add: (data) => electron.ipcRenderer.invoke("history:add", data),
+      get: (data) => electron.ipcRenderer.invoke("history:get", data),
+      delete: (data) => electron.ipcRenderer.invoke("history:delete", data),
+      getFragmentByName: (data) => electron.ipcRenderer.invoke("history:get-fragment-by-name", data)
+    },
+    admin: {
+      getUsers: (data) => electron.ipcRenderer.invoke("admin:get-users", data),
+      deleteUser: (data) => electron.ipcRenderer.invoke("admin:delete-user", data)
+    },
+    archive: {
+      create: (data) => electron.ipcRenderer.invoke("archive:create", data)
     }
   });
   console.log("--- PRELOAD SCRIPT FINISHED ---");

@@ -41,7 +41,7 @@ const Settings = () => {
             await window.api.drive.logout();
             await checkSession();
         } catch (err) {
-            console.error('Logout failed', err);
+            console.error('Logout eșuat', err);
         } finally {
             setLoading(false);
         }
@@ -52,10 +52,10 @@ const Settings = () => {
             <h2 className="text-3xl font-bold mb-6">Setări</h2>
 
             <div className="bg-gray-900 rounded-xl p-6 border border-gray-800 max-w-2xl">
-                <h3 className="text-xl font-semibold mb-4 text-blue-400">Integrare Google Drive</h3>
+                <h3 className="text-xl font-semibold mb-4 text-blue-400">Integrare Google</h3>
 
                 <p className="text-gray-400 mb-6">
-                    Conectează contul Google Drive pentru a salva înregistrările direct în cloud.
+                    Conectați contul Google pentru a salva înregistrările direct în cloud.
                 </p>
 
                 {error && (
@@ -83,23 +83,32 @@ const Settings = () => {
                             disabled={loading}
                             className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
                         >
-                            {loading ? 'Se conectează...' : 'Conectează Drive'}
+                            {loading ? 'Se conectează...' : 'Conectați-vă cu un cont Google'}
                         </button>
                     ) : (
                         <div className="flex gap-2">
                             <button
-                                onClick={handleConnect}
+                                onClick={async () => {
+                                    setLoading(true);
+                                    try {
+                                        await window.api.drive.logout();
+                                        await handleConnect();
+                                    } catch (err) {
+                                        console.error('Logout failed before changing account', err);
+                                        setLoading(false);
+                                    }
+                                }}
                                 disabled={loading}
                                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors text-sm"
                             >
-                                Schimbă Cont
+                                Schimbare cont
                             </button>
                             <button
                                 onClick={handleLogout}
                                 disabled={loading}
                                 className="px-4 py-2 bg-red-900/50 hover:bg-red-900 border border-red-900 text-red-200 rounded-lg font-medium transition-colors text-sm"
                             >
-                                Deconectează
+                                Deconectare
                             </button>
                         </div>
                     )}

@@ -8,7 +8,12 @@ const Sidebar = () => {
     const isActive = (path: string) => location.pathname === path;
 
     const user = localStorage.getItem('user');
-
+    let userObj: any = null;
+    if (user) {
+        try {
+            userObj = JSON.parse(user);
+        } catch (e) { }
+    }
 
     const handleAuthAction = () => {
         if (user) {
@@ -23,7 +28,7 @@ const Sidebar = () => {
 
     return (
         <div className="w-64 h-screen bg-gray-900 text-white flex flex-col p-4 border-r border-gray-800">
-            <h1 className="text-2xl font-bold mb-8 text-blue-500">Licență App</h1>
+            <h1 className="text-2xl font-bold mb-8 text-blue-500">FragMan</h1>
 
             <nav className="flex-1 space-y-2">
                 <Link
@@ -32,13 +37,29 @@ const Sidebar = () => {
                 >
                     Panou de control
                 </Link>
-                {user && (
-                    <Link
-                        to="/library"
-                        className={`block px-4 py-3 rounded-lg transition-colors ${isActive('/library') ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
-                    >
-                        Bază de date
-                    </Link>
+                {userObj && (
+                    <>
+                        <Link
+                            to="/library"
+                            className={`block px-4 py-3 rounded-lg transition-colors ${isActive('/library') ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+                        >
+                            Bază de date
+                        </Link>
+                        <Link
+                            to="/history"
+                            className={`block px-4 py-3 rounded-lg transition-colors ${isActive('/history') ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+                        >
+                            Istoric
+                        </Link>
+                        {userObj.isAdmin && (
+                            <Link
+                                to="/users"
+                                className={`block px-4 py-3 rounded-lg transition-colors ${isActive('/users') ? 'bg-red-900/40 text-red-200' : 'hover:bg-gray-800'}`}
+                            >
+                                Utilizatori (Admin)
+                            </Link>
+                        )}
+                    </>
                 )}
                 <Link
                     to="/settings"

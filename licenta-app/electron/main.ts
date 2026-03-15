@@ -4,11 +4,15 @@ import { setupAuthHandlers } from './auth';
 import { setupRecorderHandlers } from './recorder';
 import { setupDriveHandlers } from './drive';
 import { setupLibraryHandlers } from './library';
+import { setupHistoryHandlers } from './history';
+import { setupArchiveHandlers } from './archive';
 
 setupAuthHandlers();
 setupRecorderHandlers();
 setupDriveHandlers();
 setupLibraryHandlers();
+setupHistoryHandlers();
+setupArchiveHandlers();
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -37,6 +41,9 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win: BrowserWindow | null
 
 import fs from 'node:fs'; // Import fs for checking file existence
+
+// Set the display name of the application (does NOT affect userData path - safe to change)
+app.setName('FragMan');
 
 function createWindow() {
   // Debug paths
@@ -132,31 +139,107 @@ protocol.registerSchemesAsPrivileged([
 
 app.whenReady().then(() => {
   // Handle 'media' protocol to serve local files
+  // Handle 'media' protocol to serve local files with Range support
   protocol.handle('media', (request) => {
     try {
       const urlObj = new URL(request.url);
       let filePath = urlObj.pathname;
 
       // Handle Windows drive letters
-      // Case 1: media://c/folder/file (host = 'c') -> filePath = '/folder/file'
       if (urlObj.host && /^[a-z]$/i.test(urlObj.host)) {
         filePath = `${urlObj.host}:${filePath}`;
-      }
-      // Case 2: media:///C:/folder/file (host = '') -> filePath = '/C:/folder/file'
-      else if (process.platform === 'win32' && filePath.startsWith('/') && /^[a-zA-Z]:/.test(filePath.slice(1))) {
+      } else if (process.platform === 'win32' && filePath.startsWith('/') && /^[a-zA-Z]:/.test(filePath.slice(1))) {
         filePath = filePath.slice(1);
       }
 
       const decodedPath = decodeURIComponent(filePath);
-      console.log(`[Media Protocol] Raw: ${request.url} -> Path: ${decodedPath}`);
+      // console.log(`[Media Protocol] Path: ${decodedPath}`);
 
-      const fileUrl = pathToFileURL(decodedPath).toString();
-      // console.log(`[Media Protocol] Serving: ${fileUrl}`);
+      if (!fs.existsSync(decodedPath)) {
+        console.error(`[Media Protocol] File not found: ${decodedPath}`);
+        return new Response('File not found', { status: 404 });
+      }
 
-      return net.fetch(fileUrl);
+      const stat = fs.statSync(decodedPath);
+      const fileSize = stat.size;
+      const range = request.headers.get('Range');
+
+      if (range) {
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        const chunkSize = (end - start) + 1;
+
+        // console.log(`[Media Protocol] Range: ${start}-${end}/${fileSize}`);
+
+        const fileStream = fs.createReadStream(decodedPath, { start, end });
+
+        // Convert Node stream to Web ReadableStream
+        const stream = new ReadableStream({
+          start(controller) {
+            fileStream.on('data', (chunk) => {
+              try {
+                controller.enqueue(chunk);
+              } catch (e) {
+                // Controller might be closed if request was cancelled
+                fileStream.destroy();
+              }
+            });
+            fileStream.on('end', () => {
+              try { controller.close(); } catch (e) { }
+            });
+            fileStream.on('error', (err) => controller.error(err));
+          },
+          cancel() {
+            fileStream.destroy();
+          }
+        });
+
+        return new Response(stream, {
+          status: 206,
+          headers: {
+            'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': chunkSize.toString(),
+            'Content-Type': 'video/webm', // Adjust based on file type if needed, but we mostly use webm
+          }
+        });
+      } else {
+        // console.log(`[Media Protocol] Full file request`);
+        const fileStream = fs.createReadStream(decodedPath);
+
+        const stream = new ReadableStream({
+          start(controller) {
+            fileStream.on('data', (chunk) => {
+              try {
+                controller.enqueue(chunk);
+              } catch (e) {
+                fileStream.destroy();
+              }
+            });
+            fileStream.on('end', () => {
+              try { controller.close(); } catch (e) { }
+            });
+            fileStream.on('error', (err) => controller.error(err));
+          },
+          cancel() {
+            fileStream.destroy();
+          }
+        });
+
+        return new Response(stream, {
+          status: 200,
+          headers: {
+            'Content-Length': fileSize.toString(),
+            'Content-Type': 'video/webm',
+            'Accept-Ranges': 'bytes', // Advertise range support even on full request
+          }
+        });
+      }
+
     } catch (error) {
       console.error('[Media Protocol] Error:', error);
-      return new Response('Bad Request', { status: 400 });
+      return new Response('Internal Server Error', { status: 500 });
     }
   });
 

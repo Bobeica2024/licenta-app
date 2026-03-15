@@ -1,9 +1,12 @@
+// Router logic in App.tsx
 import { HashRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Settings from './pages/Settings';
 import Library from './pages/Library';
+import History from './pages/History';
+import Users from './pages/Users';
 
 const AppLayout = () => {
   return (
@@ -30,6 +33,8 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/library" element={<Library />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/history" element={<History />} />
+          <Route path="/users" element={<Users />} />
         </Route>
       </Routes>
     </Router>

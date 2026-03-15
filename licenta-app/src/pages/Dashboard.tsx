@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import StreamPlayer, { StreamPlayerRef } from '../components/StreamPlayer';
 import { useRecorder } from '../hooks/useRecorder';
 import FileExplorer from '../components/FileExplorer';
+import GoogleDrivePicker from '../components/GoogleDrivePicker';
 
 const Dashboard = () => {
     const [url, setUrl] = useState('');
@@ -9,6 +10,7 @@ const Dashboard = () => {
     const [saveDestination, setSaveDestination] = useState('local'); // 'local' | 'sqlite' | 'drive'
     const [isUploading, setIsUploading] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
+    const [showDrivePicker, setShowDrivePicker] = useState(false);
 
     const [showRawYoutube, setShowRawYoutube] = useState(false);
     const playerWrapperRef = useRef<HTMLDivElement>(null);
@@ -50,7 +52,7 @@ const Dashboard = () => {
         currentFilePath
     } = useRecorder({
         onStop: async (path) => {
-            console.log('Recording stopped. Temp file at:', path);
+            console.log('Înregistrare oprită. Fișier temporar la:', path);
 
             // Calculate crop dimensions based on the player wrapper element
             if (playerWrapperRef.current) {
@@ -90,7 +92,7 @@ const Dashboard = () => {
                 crop.x = Math.floor(crop.x / 2) * 2;
                 crop.y = Math.floor(crop.y / 2) * 2;
 
-                console.log('Applying crop:', crop);
+                console.log('Aplicare decupare:', crop);
 
                 setIsUploading(true); // Show some activity while cropping
                 try {
@@ -98,10 +100,10 @@ const Dashboard = () => {
                     const result = await window.api.recorder.cropVideo({ inputPath: path, crop });
 
                     if (result.success && result.outputPath) {
-                        console.log('Crop successful:', result.outputPath);
+                        console.log('Decupare efectuată cu succes:', result.outputPath);
                         setCroppedFilePath(result.outputPath);
                     } else {
-                        console.error('Crop failed:', result.error);
+                        console.error('Decupare eșuată:', result.error);
                         // Optional: alert user or just fallback to original
                     }
                 } catch (error) {
@@ -123,13 +125,35 @@ const Dashboard = () => {
     const handleSaveClick = async () => {
         if (saveDestination === 'sqlite') {
             setShowSaveModal(true);
+        } else if (saveDestination === 'drive') {
+            // Initiate Google Drive flow
+            setIsUploading(true);
+            try {
+                const session = await window.api.drive.getSession();
+                if (!session.isLoggedIn) {
+                    const authResult = await window.api.drive.authenticate();
+                    if (!authResult.success) {
+                        alert('Autentificarea Google a eșuat sau a fost anulată.');
+                        setIsUploading(false);
+                        return;
+                    }
+                }
+
+                // If logged in (or just logged in), show the picker
+                setShowDrivePicker(true);
+            } catch (err: any) {
+                alert(`Eroare la conectarea Google Drive: ${err.message}`);
+            } finally {
+                setIsUploading(false);
+            }
         } else {
             handleConfirmSave(null);
         }
     };
 
-    const handleConfirmSave = async (folderId: number | null) => {
+    const handleConfirmSave = async (folderId: string | number | null) => {
         setShowSaveModal(false);
+        setShowDrivePicker(false);
         // Use cropped path if available, otherwise original
         const path = croppedFilePath || currentFilePath;
         if (!path) return;
@@ -140,25 +164,32 @@ const Dashboard = () => {
             // Use custom title if provided, otherwise default timestamp
             const finalTitle = recordingTitle.trim() || `Recording ${new Date().toLocaleString()}`;
 
-            const result = await window.api.recorder.saveFile({
-                tempPath: path,
-                destination: saveDestination,
-                userId: userObj?.id,
-                title: finalTitle,
-                sourceUrl: url,
-                folderId: folderId
-            });
+            let result;
+
+            if (saveDestination === 'drive') {
+                // Perform real drive upload. Pass tokens as undefined to use session
+                result = await window.api.drive.upload(path, undefined, folderId ? String(folderId) : undefined, finalTitle);
+            } else {
+                result = await window.api.recorder.saveFile({
+                    tempPath: path,
+                    destination: saveDestination,
+                    userId: userObj?.id,
+                    title: finalTitle,
+                    sourceUrl: url,
+                    folderId: folderId as (number | null)
+                });
+            }
 
             if (result.success) {
                 if (saveDestination === 'sqlite') {
                     alert('Salvat cu succes în Bază de Date!');
+                } else if (saveDestination === 'drive') {
+                    alert('Salvat cu succes în Google Drive!');
                 } else {
-                    alert(`Salvat cu succes în: ${saveDestination === 'drive' ? 'Google Drive' : result.filePath}`);
+                    alert(`Salvat cu succes în: ${(result as any).filePath}`);
                 }
-                setRecordingTitle(''); // Reset title
+                setRecordingTitle('');
 
-                // Don't discard immediately. Let the user do it when they want a new recording.
-                // We just stop the loading spinner.
             } else {
                 alert(`Salvare eșuată: ${result.error}`);
             }
@@ -210,10 +241,25 @@ const Dashboard = () => {
         playerRef.current?.play();
     };
 
-    const handleConnect = () => {
-        if (inputUrl) {
-            setUrl(inputUrl);
+    const loadNewUrl = async (newUrl: string) => {
+        if (!newUrl) return;
+        if (currentFilePath) {
+            if (confirm("Se pare că ai o înregistrare recentă pe ecran. Doriți să o ștergeți pentru a putea adăuga un videoclip nou?")) {
+                await discardRecording();
+                if (croppedFilePath) {
+                    // @ts-ignore
+                    await window.api.recorder.deleteTempFile(croppedFilePath);
+                    setCroppedFilePath(null);
+                }
+                setUrl(newUrl);
+            }
+        } else {
+            setUrl(newUrl);
         }
+    };
+
+    const handleConnect = () => {
+        loadNewUrl(inputUrl);
     };
 
     const handleStartNewRecording = async () => {
@@ -235,11 +281,11 @@ const Dashboard = () => {
             <h2 className="text-3xl font-bold mb-6">Panou de control</h2>
 
             {/* Debug Monitor */}
-            <div className="mb-4 p-2 bg-gray-800 rounded border border-gray-700 font-mono text-xs">
+            {/* <div className="mb-4 p-2 bg-gray-800 rounded border border-gray-700 font-mono text-xs">
                 <p>Status API: <span className={(window as any).api ? "text-green-500" : "text-red-500"}>{(window as any).api ? "CONECTAT" : "DECONECTAT"}</span></p>
                 <p>Cale: {currentFilePath || "Niciuna"}</p>
-                {croppedFilePath && <p>Cale Decupată: {croppedFilePath}</p>}
-            </div>
+                {croppedFilePath && <p>Cale decupată: {croppedFilePath}</p>}
+            </div> */}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
                 {/* Stream Area */}
@@ -248,29 +294,29 @@ const Dashboard = () => {
                         <input
                             type="text"
                             className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
-                            placeholder="Introdu URL Youtube..."
+                            placeholder="Introduceți URL Youtube..."
                             value={inputUrl}
                             onChange={(e) => setInputUrl(e.target.value)}
-                            disabled={isRecording || !!currentFilePath}
+                            disabled={isRecording}
                         />
                         <button
                             onClick={handleConnect}
                             className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-medium transition-colors"
-                            disabled={isRecording || !!currentFilePath}
+                            disabled={isRecording}
                         >
-                            Conectează
+                            Conectați-vă
                         </button>
                         <button
-                            onClick={() => setUrl('https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4')}
+                            onClick={() => loadNewUrl('https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4')}
                             className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-medium transition-colors"
-                            disabled={isRecording || !!currentFilePath}
+                            disabled={isRecording}
                         >
                             Test MP4
                         </button>
                         <button
-                            onClick={() => setUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')}
+                            onClick={() => loadNewUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')}
                             className="bg-yellow-600 hover:bg-yellow-700 px-6 py-2 rounded-lg font-medium transition-colors"
-                            disabled={isRecording || !!currentFilePath}
+                            disabled={isRecording}
                         >
                             Test YT
                         </button>
@@ -279,7 +325,7 @@ const Dashboard = () => {
                                 setShowRawYoutube(prev => !prev);
                             }}
                             className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-medium transition-colors"
-                            disabled={isRecording || !!currentFilePath}
+                            disabled={isRecording}
                         >
                             {showRawYoutube ? 'Arată Player' : 'Încarcă Iframe'}
                         </button>
@@ -295,14 +341,14 @@ const Dashboard = () => {
                             {!isRecording && currentFilePath ? (
                                 <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900 border-2 border-yellow-500/50 relative p-4">
                                     <div className="absolute top-4 left-4 bg-yellow-600 text-white text-xs px-2 py-1 rounded font-bold uppercase tracking-wider z-10">
-                                        Mod Previzualizare {croppedFilePath ? '(Decupat)' : ''}
+                                        Mod previzualizare {croppedFilePath ? '(Decupat)' : ''}
                                     </div>
                                     <video
                                         src={`media:///${(croppedFilePath || currentFilePath || '').replace(/\\/g, '/')}`}
                                         controls
                                         className="w-full h-full object-contain"
                                     />
-                                    <p className="text-gray-400 text-sm mt-2">Verifică înregistrarea înainte de salvare.</p>
+                                    <p className="text-gray-400 text-sm mt-2">Verificați înregistrarea înainte de salvare.</p>
                                 </div>
                             ) : url ? (
                                 <StreamPlayer
@@ -335,7 +381,7 @@ const Dashboard = () => {
                                 disabled={!url || isUploading}
                             >
                                 <div className={`w-4 h-4 rounded-full ${!url ? 'bg-gray-500' : 'bg-white animate-pulse'}`} />
-                                {currentFilePath ? "Începe înregistrare nouă" : "Începe înregistrarea"}
+                                {currentFilePath ? "Începeți înregistrare nouă" : "Începeți înregistrarea"}
                             </button>
                         )}
 
@@ -350,15 +396,15 @@ const Dashboard = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     {isPaused ? (
                                         <button onClick={handleResumeRecording} className="py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors">
-                                            Reia Înr.
+                                            Reluați înregistrarea
                                         </button>
                                     ) : (
                                         <button onClick={pauseRecording} className="py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-medium transition-colors">
-                                            Pauză Înr.
+                                            Pauză înregistrare
                                         </button>
                                     )}
                                     <button onClick={stopRecording} className="py-3 bg-gray-700 hover:bg-gray-600 rounded-lg font-medium transition-colors">
-                                        Stop Înr.
+                                        Stop înregistrare
                                     </button>
                                 </div>
                             </div>
@@ -373,9 +419,9 @@ const Dashboard = () => {
                                     <button
                                         onClick={handleDiscard}
                                         className="flex-1 py-3 bg-red-900/50 hover:bg-red-800 text-red-200 border border-red-800 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                                        title="Discard Recording"
+                                        title="Șterge înregistrarea curentă"
                                     >
-                                        🗑️ Renunță
+                                        🗑️ Șterge Preview
                                     </button>
 
                                     <button
@@ -390,7 +436,7 @@ const Dashboard = () => {
                                 <hr className="border-gray-800 my-4" />
 
                                 <div className="space-y-2">
-                                    <label className="text-sm text-gray-400">Destinație Salvare</label>
+                                    <label className="text-sm text-gray-400">Destinație salvare</label>
                                     <select
                                         className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none"
                                         value={saveDestination}
@@ -408,9 +454,9 @@ const Dashboard = () => {
                         {/* Placeholder for when no action is active, just to keep layout consistent if needed */}
                         {!isRecording && !currentFilePath && (
                             <div className="space-y-2 opacity-50">
-                                <label className="text-sm text-gray-400">Destinație Salvare (Inactiv)</label>
+                                <label className="text-sm text-gray-400">Destinație salvare (Inactiv)</label>
                                 <select className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2" disabled>
-                                    <option>Computer Local</option>
+                                    <option>Computer local</option>
                                 </select>
                             </div>
                         )}
@@ -448,10 +494,47 @@ const Dashboard = () => {
                         </div>
 
                         <div className="flex-1 overflow-hidden p-2">
-                            <p className="text-sm text-gray-400 px-2 py-1">Selectează folderul destinație:</p>
+                            <p className="text-sm text-gray-400 px-2 py-1">Selectați folderul destinație:</p>
                             <FileExplorer
                                 mode="select"
                                 onSelect={(folderId) => handleConfirmSave(folderId)}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Google Drive Picker Modal */}
+            {showDrivePicker && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                    <div className="bg-gray-900 w-[800px] h-[600px] rounded-xl flex flex-col border border-gray-700 shadow-2xl">
+                        <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-800 rounded-t-xl">
+                            <h3 className="font-bold text-xl text-white flex items-center gap-2">
+                                <span className="text-blue-500">☁️</span> Salvare în Google Drive
+                            </h3>
+                            <button
+                                onClick={() => setShowDrivePicker(false)}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-4 bg-gray-800 border-b border-gray-700">
+                            <label className="block text-sm text-gray-400 mb-1">Titlu înregistrare</label>
+                            <input
+                                type="text"
+                                className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                                placeholder="Alege un titlu..."
+                                value={recordingTitle}
+                                onChange={(e) => setRecordingTitle(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="flex-1 overflow-hidden p-4">
+                            <GoogleDrivePicker
+                                onSelect={(folderId) => handleConfirmSave(folderId)}
+                                onCancel={() => setShowDrivePicker(false)}
                             />
                         </div>
                     </div>

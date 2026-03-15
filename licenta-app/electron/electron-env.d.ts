@@ -44,9 +44,10 @@ interface Window {
     };
     drive: {
       authenticate: () => Promise<any>;
-      upload: (filePath: string, tokens: any) => Promise<any>;
+      upload: (filePath: string, tokens: any, folderId?: string, title?: string) => Promise<any>;
       logout: () => Promise<any>;
       getSession: () => Promise<any>;
+      listFolders: (parentId?: string, tokens?: any) => Promise<{ success: boolean, folders?: { id: string, name: string }[], error?: string }>;
     };
     library: {
       getContents: (data: { folderId: number | null, userId: number }) => Promise<any[]>;
