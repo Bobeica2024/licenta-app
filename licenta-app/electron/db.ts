@@ -74,14 +74,18 @@ try {
     db.exec('ALTER TABLE fragments ADD COLUMN type TEXT DEFAULT "video"');
   }
 
-  // Create default admin 'bobeicastefan'
-  const adminStmt = db.prepare('SELECT id FROM users WHERE username = ?');
-  const admin = adminStmt.get('bobeicastefan');
+  // Create or ensure default admin 'bobeicastefan' has is_admin = 1
+  const adminStmt = db.prepare('SELECT id, is_admin FROM users WHERE username = ?');
+  const admin = adminStmt.get('bobeicastefan') as any;
   if (!admin) {
     console.log('Creating default admin user...');
     const insertAdmin = db.prepare('INSERT INTO users (username, password_hash, hint, is_admin) VALUES (?, ?, ?, ?)');
     const hash = bcrypt.hashSync('ProGoMoRe2026', SALT_ROUNDS);
     insertAdmin.run('bobeicastefan', hash, 'Admin default account', 1);
+  } else if (!admin.is_admin) {
+    // Account existed but is_admin was not set (e.g. created before migration)
+    console.log('Updating bobeicastefan to admin...');
+    db.prepare('UPDATE users SET is_admin = 1 WHERE username = ?').run('bobeicastefan');
   }
 
 } catch (err) {

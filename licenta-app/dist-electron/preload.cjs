@@ -62,7 +62,8 @@ try {
     },
     admin: {
       getUsers: (data) => electron.ipcRenderer.invoke("admin:get-users", data),
-      deleteUser: (data) => electron.ipcRenderer.invoke("admin:delete-user", data)
+      deleteUser: (data) => electron.ipcRenderer.invoke("admin:delete-user", data),
+      resetPassword: (data) => electron.ipcRenderer.invoke("admin:reset-password", data)
     },
     archive: {
       create: (data) => electron.ipcRenderer.invoke("archive:create", data)

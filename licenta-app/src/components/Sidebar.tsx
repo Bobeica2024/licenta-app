@@ -7,17 +7,40 @@ const Sidebar = () => {
 
     const isActive = (path: string) => location.pathname === path;
 
-    const user = localStorage.getItem('user');
-    let userObj: any = null;
-    if (user) {
-        try {
-            userObj = JSON.parse(user);
-        } catch (e) { }
-    }
+    // Re-read user on every route change so admin link appears right after login
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const userObj: any = React.useMemo(() => {
+        const raw = localStorage.getItem('user');
+        if (!raw) return null;
+        try { return JSON.parse(raw); } catch { return null; }
+    }, [location.pathname]);
 
-    const handleAuthAction = () => {
+    const user = !!userObj;
+
+    const handleAuthAction = async () => {
         if (user) {
-            // Logout
+            // Logout: clean up any unsaved recording temp files before clearing session
+            const recorderFilePath = sessionStorage.getItem('recorder_filePath');
+            const croppedFilePath = sessionStorage.getItem('dashboard_croppedFilePath');
+
+            // Delete temp files silently (best effort)
+            try {
+                if (croppedFilePath) {
+                    // @ts-ignore
+                    await window.api.recorder.deleteTempFile(croppedFilePath);
+                }
+                if (recorderFilePath) {
+                    // @ts-ignore
+                    await window.api.recorder.deleteTempFile(recorderFilePath);
+                }
+            } catch (e) {
+                console.warn('Could not delete temp recording files on logout:', e);
+            }
+
+            // Clear session recording state
+            sessionStorage.removeItem('recorder_filePath');
+            sessionStorage.removeItem('dashboard_croppedFilePath');
+
             localStorage.removeItem('user');
         } else {
             // Login (from Guest)
@@ -56,7 +79,7 @@ const Sidebar = () => {
                                 to="/users"
                                 className={`block px-4 py-3 rounded-lg transition-colors ${isActive('/users') ? 'bg-red-900/40 text-red-200' : 'hover:bg-gray-800'}`}
                             >
-                                Utilizatori (Admin)
+                                Utilizatori
                             </Link>
                         )}
                     </>

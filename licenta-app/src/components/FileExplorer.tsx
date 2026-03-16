@@ -14,9 +14,10 @@ interface FileExplorerProps {
     mode: 'view' | 'select'; // 'view' for Library, 'select' for Saving
     onSelect?: (folderId: number | null) => void; // For saving, returns selected folder ID
     onPlay?: (file: FileSystemItem) => void; // For playing a file
+    overrideUserId?: number; // Admin override to browse another user's DB
 }
 
-const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) => {
+const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, overrideUserId }) => {
     const [currentPath, setCurrentPath] = useState<FileSystemItem[]>(() => {
         if (mode === 'view') {
             const saved = sessionStorage.getItem('fileExplorer_currentPath');
@@ -80,9 +81,10 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) =
             const userStr = localStorage.getItem('user');
             const user = userStr ? JSON.parse(userStr) : null;
             if (!user) return;
+            const effectiveUserId = overrideUserId ?? user.id;
 
             // @ts-ignore
-            const result = await window.api.library.getContents({ folderId, userId: user.id });
+            const result = await window.api.library.getContents({ folderId, userId: effectiveUserId });
             setItems(result);
         } catch (error) {
             console.error("Failed to load items", error);
@@ -121,13 +123,14 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) =
             const userStr = localStorage.getItem('user');
             const user = userStr ? JSON.parse(userStr) : null;
             if (!user) return;
+            const effectiveUserId = overrideUserId ?? user.id;
 
             // @ts-ignore
-            await window.api.library.createFolder({ name: newFolderName, parentId: currentFolderId, userId: user.id });
+            await window.api.library.createFolder({ name: newFolderName, parentId: currentFolderId, userId: effectiveUserId });
             setNewFolderName('');
             setIsCreatingFolder(false);
 
-            // Add to history
+            // Add to history (always as the logged-in user)
             try {
                 await window.api.history.add({
                     userId: user.id,
@@ -192,13 +195,14 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) =
             const userStr = localStorage.getItem('user');
             const user = userStr ? JSON.parse(userStr) : null;
             if (!user) return;
+            const effectiveUserId = overrideUserId ?? user.id;
 
             // @ts-ignore
             await window.api.library.renameItem({
                 id: editingItem.id,
                 type: editingItem.type,
                 newName: renameValue,
-                userId: user.id
+                userId: effectiveUserId
             });
             // Add to history
             try {
@@ -242,10 +246,11 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) =
             const userStr = localStorage.getItem('user');
             const user = userStr ? JSON.parse(userStr) : null;
             if (!user) return;
+            const effectiveUserId = overrideUserId ?? user.id;
 
             for (const item of itemsToDelete) {
                 // @ts-ignore
-                await window.api.library.deleteItem({ id: item.id, type: item.type, userId: user.id });
+                await window.api.library.deleteItem({ id: item.id, type: item.type, userId: effectiveUserId });
 
                 // Add to history
                 try {
@@ -300,13 +305,14 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) =
             const userStr = localStorage.getItem('user');
             const user = userStr ? JSON.parse(userStr) : null;
             if (!user) return;
+            const effectiveUserId = overrideUserId ?? user.id;
 
             // @ts-ignore
             await window.api.library.moveItem({
                 id: item.id,
                 type: item.type,
                 targetFolderId: targetFolder.id,
-                userId: user.id
+                userId: effectiveUserId
             });
 
             // Add to history
@@ -341,6 +347,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) =
             const userStr = localStorage.getItem('user');
             const user = userStr ? JSON.parse(userStr) : null;
             if (!user) return;
+            const effectiveUserId = overrideUserId ?? user.id;
 
             if (clipboard.action === 'cut') {
                 // @ts-ignore
@@ -348,7 +355,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) =
                     id: clipboard.item.id,
                     type: clipboard.item.type,
                     targetFolderId: currentFolderId,
-                    userId: user.id
+                    userId: effectiveUserId
                 });
 
                 // Add to history
@@ -367,7 +374,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) =
                     id: clipboard.item.id,
                     type: clipboard.item.type,
                     targetFolderId: currentFolderId,
-                    userId: user.id
+                    userId: effectiveUserId
                 });
                 // Add to history
                 try {
@@ -415,12 +422,13 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) =
             const userStr = localStorage.getItem('user');
             const user = userStr ? JSON.parse(userStr) : null;
             if (!user) return;
+            const effectiveUserId = overrideUserId ?? user.id;
 
             const result = await window.api.archive.create({
                 items: selectedItems as any,
                 targetFolderId: currentFolderId,
                 archiveName: archiveData.name,
-                userId: user.id,
+                userId: effectiveUserId,
                 destination: archiveData.destination
             });
 
@@ -440,7 +448,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay }) =
                     }
                 }
                 
-                // Add to history
+                // Add to history (always as logged-in user)
                 try {
                     await window.api.history.add({
                         userId: user.id,

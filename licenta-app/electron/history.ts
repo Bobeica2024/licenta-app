@@ -105,15 +105,46 @@ export function setupHistoryHandlers() {
     ipcMain.handle('admin:delete-user', async (_, { targetUserId, isAdmin }) => {
         try {
             if (!isAdmin) return { success: false, error: 'Unauthorized' };
-            const stmt = db.prepare('DELETE FROM users WHERE id = ? AND is_admin = 0');
-            const result = stmt.run(targetUserId);
+
+            // Check target is not admin
+            const target = db.prepare('SELECT id, is_admin FROM users WHERE id = ?').get(targetUserId) as any;
+            if (!target) return { success: false, error: 'User not found' };
+            if (target.is_admin) return { success: false, error: 'Cannot delete admin accounts' };
+
+            // Delete related data first (tables without ON DELETE CASCADE)
+            db.prepare('DELETE FROM fragments WHERE user_id = ?').run(targetUserId);
+            db.prepare('DELETE FROM folders WHERE user_id = ?').run(targetUserId);
+            // history has ON DELETE CASCADE, but delete explicitly for safety
+            db.prepare('DELETE FROM history WHERE user_id = ?').run(targetUserId);
+
+            // Now delete the user
+            const result = db.prepare('DELETE FROM users WHERE id = ?').run(targetUserId);
             if (result.changes === 0) {
-                return { success: false, error: 'Could not delete user (maybe is admin or does not exist)' };
+                return { success: false, error: 'Could not delete user' };
             }
             return { success: true };
         } catch (error: any) {
             console.error('Delete user error:', error);
             return { success: false, error: 'Failed to delete user' };
+        }
+    });
+
+    // Resetare parola user (doar pentru admin)
+    ipcMain.handle('admin:reset-password', async (_, { targetUserId, newPassword, isAdmin }) => {
+        try {
+            if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+            const target = db.prepare('SELECT id, is_admin FROM users WHERE id = ?').get(targetUserId) as any;
+            if (!target) return { success: false, error: 'User not found' };
+            if (target.is_admin) return { success: false, error: 'Cannot change admin password from here' };
+
+            const bcrypt = await import('bcryptjs');
+            const hash = await bcrypt.hash(newPassword, 10);
+            db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, targetUserId);
+            return { success: true };
+        } catch (error: any) {
+            console.error('Reset password error:', error);
+            return { success: false, error: 'Failed to reset password' };
         }
     });
 }

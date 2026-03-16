@@ -44,6 +44,7 @@ interface Window {
         admin: {
             getUsers: (data: { isAdmin: boolean }) => Promise<{ success: boolean; users?: any[]; error?: string }>;
             deleteUser: (data: { targetUserId: number; isAdmin: boolean }) => Promise<{ success: boolean; error?: string }>;
+            resetPassword: (data: { targetUserId: number; newPassword: string; isAdmin: boolean }) => Promise<{ success: boolean; error?: string }>;
         };
         archive: {
             create: (data: { items: { id: number; type: 'folder' | 'file' }[]; targetFolderId: number | null; archiveName?: string; userId: number; destination?: 'local' | 'db' | 'drive' }) => Promise<{ success: boolean; filePath?: string; destination?: string; fileName?: string; error?: string }>;

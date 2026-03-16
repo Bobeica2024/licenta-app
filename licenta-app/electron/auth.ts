@@ -26,14 +26,14 @@ export function setupAuthHandlers() {
             const user = stmt.get(username) as any;
 
             if (!user) {
-                return { success: false, error: 'User not found' };
+                return { success: false, error: 'Utilizatorul nu a fost găsit! Verificați introducerea username-ului și a parolei.' };
             }
 
             const match = await bcrypt.compare(password, user.password_hash);
             if (match) {
                 return { success: true, user: { id: user.id, username: user.username, isAdmin: !!user.is_admin } };
             } else {
-                return { success: false, error: 'Invalid credentials' };
+                return { success: false, error: 'Parolă incorectă! Verificați introducerea username-ului și a parolei.' };
             }
         } catch (error) {
             console.error('Login error:', error);

@@ -6,6 +6,8 @@ const History = () => {
     const [error, setError] = useState<string | null>(null);
     const [selectedItems, setSelectedItems] = useState<number[]>([]);
     const [playingFile, setPlayingFile] = useState<{ name: string, filePath: string } | null>(null);
+    // Admin: filter by user ('all' | specific userId as string)
+    const [filterUserId, setFilterUserId] = useState<string>('all');
 
     const userStr = localStorage.getItem('user');
     const user = userStr ? JSON.parse(userStr) : null;
@@ -78,6 +80,8 @@ const History = () => {
         }
     };
 
+    const PREVIEW_ACTIONS = new Set(['VIEW_VIDEO', 'SAVE_VIDEO', 'SAVE_DB', 'SAVE_LOCAL', 'SAVE_DRIVE']);
+
     const handlePreviewClick = async (e: React.MouseEvent, item: any) => {
         e.stopPropagation();
         const result = await window.api.history.getFragmentByName({ itemName: item.item_name, ownerId: item.user_id });
@@ -103,13 +107,46 @@ const History = () => {
         return <div className="p-8 text-center text-red-500">Trebuie să fii autentificat pentru a vedea istoricul.</div>;
     }
 
+    // Unique users in history (for admin filter dropdown)
+    const uniqueUsers: { id: number; username: string }[] = [];
+    if (user.isAdmin) {
+        const seen = new Set<number>();
+        history.forEach(item => {
+            if (!seen.has(item.user_id)) {
+                seen.add(item.user_id);
+                uniqueUsers.push({ id: item.user_id, username: item.username });
+            }
+        });
+        uniqueUsers.sort((a, b) => a.username.localeCompare(b.username));
+    }
+
+    const filteredHistory = user.isAdmin && filterUserId !== 'all'
+        ? history.filter(item => String(item.user_id) === filterUserId)
+        : history;
+
     return (
         <div className="flex-1 p-8 bg-gray-950 text-white overflow-auto h-full">
             <h2 className="text-3xl font-bold mb-6 text-blue-500">Istoric Operațiuni</h2>
 
             {user.isAdmin && (
-                <div className="mb-6 p-4 bg-blue-900/20 border border-blue-900/50 rounded-lg text-blue-200">
-                    Sunteți autentificat ca Administrator. Vedeți istoricul tuturor utilizatorilor.
+                <div className="mb-6 flex flex-wrap items-center gap-4">
+                    <div className="p-4 bg-blue-900/20 border border-blue-900/50 rounded-lg text-blue-200 flex-1">
+                        Sunteți autentificat ca Administrator. Vedeți istoricul tuturor utilizatorilor.
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-400 whitespace-nowrap">👤 Filtrează după utilizator:</span>
+                        <select
+                            value={filterUserId}
+                            onChange={(e) => { setFilterUserId(e.target.value); setSelectedItems([]); }}
+                            className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm"
+                        >
+                            <option value="all">Toți utilizatorii</option>
+                            <option value={String(user.id)}>Doar eu</option>
+                            {uniqueUsers.filter(u => u.id !== user.id).map(u => (
+                                <option key={u.id} value={String(u.id)}>{u.username}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             )}
 
@@ -135,7 +172,7 @@ const History = () => {
 
             {loading ? (
                 <div className="text-gray-400">Se încarcă istoricul...</div>
-            ) : history.length === 0 ? (
+            ) : filteredHistory.length === 0 ? (
                 <div className="text-gray-400 bg-gray-900 p-8 rounded-xl border border-gray-800 text-center">
                     Nu s-au găsit înregistrări în istoric.
                 </div>
@@ -148,11 +185,11 @@ const History = () => {
                                     <input 
                                         type="checkbox" 
                                         className="w-4 h-4 rounded border-gray-600 bg-gray-700 focus:ring-blue-500"
-                                        checked={history.length > 0 && selectedItems.length === history.length}
+                                        checked={filteredHistory.length > 0 && selectedItems.length === filteredHistory.length}
                                         onChange={toggleAll}
                                     />
                                 </th>
-                                {user.isAdmin && <th className="p-4 font-semibold text-gray-300">Utilizator</th>}
+                                {user.isAdmin && filterUserId === 'all' && <th className="p-4 font-semibold text-gray-300">Utilizator</th>}
                                 <th className="p-4 font-semibold text-gray-300">Acțiune</th>
                                 <th className="p-4 font-semibold text-gray-300">Element</th>
                                 <th className="p-4 font-semibold text-gray-300">Data & Ora</th>
@@ -160,7 +197,7 @@ const History = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {history.map((item) => (
+                            {filteredHistory.map((item) => (
                                 <tr 
                                     key={item.id} 
                                     className={`border-b border-gray-800 hover:bg-gray-800/50 transition-colors ${selectedItems.includes(item.id) ? 'bg-blue-900/20' : ''}`}
@@ -175,16 +212,20 @@ const History = () => {
                                             onChange={() => toggleSelection(item.id)}
                                         />
                                     </td>
-                                    {user.isAdmin && <td className="p-4 text-blue-400 font-medium">{item.username}</td>}
+                                    {user.isAdmin && filterUserId === 'all' && <td className="p-4 text-blue-400 font-medium">{item.username}</td>}
                                     <td className="p-4 text-gray-300">{actionTranslation[item.action_type] || item.action_type}</td>
                                     <td className="p-4 font-medium">
-                                        <span 
-                                            className="hover:underline hover:text-blue-400 cursor-pointer text-blue-300" 
-                                            onClick={(e) => handlePreviewClick(e, item)}
-                                            title="Click pentru previzualizare (doar fișiere video)"
-                                        >
-                                            {item.item_name}
-                                        </span>
+                                        {PREVIEW_ACTIONS.has(item.action_type) ? (
+                                            <span
+                                                className="hover:underline hover:text-blue-400 cursor-pointer text-blue-300"
+                                                onClick={(e) => handlePreviewClick(e, item)}
+                                                title="Click pentru previzualizare video"
+                                            >
+                                                {item.item_name}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-300">{item.item_name}</span>
+                                        )}
                                     </td>
                                     <td className="p-4 text-gray-400 text-sm">{new Date(item.created_at).toLocaleString('ro-RO')}</td>
                                     <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>

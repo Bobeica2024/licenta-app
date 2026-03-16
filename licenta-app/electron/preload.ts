@@ -67,6 +67,7 @@ try {
     admin: {
       getUsers: (data: any) => ipcRenderer.invoke('admin:get-users', data),
       deleteUser: (data: any) => ipcRenderer.invoke('admin:delete-user', data),
+      resetPassword: (data: any) => ipcRenderer.invoke('admin:reset-password', data),
     },
     archive: {
       create: (data: any) => ipcRenderer.invoke('archive:create', data),
