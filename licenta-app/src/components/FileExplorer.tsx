@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface FileSystemItem {
     id: number;
@@ -44,9 +44,11 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, item: FileSystemItem } | null>(null);
     const [editingItem, setEditingItem] = useState<{ id: number, type: 'folder' | 'file' } | null>(null);
     const [renameValue, setRenameValue] = useState('');
-    const [clipboard, setClipboard] = useState<{ action: 'cut' | 'copy', item: FileSystemItem } | null>(null);
+    const [clipboard, setClipboard] = useState<{ action: 'cut' | 'copy', items: FileSystemItem[] } | null>(null);
     const [detailsItem, setDetailsItem] = useState<FileSystemItem | null>(null);
     const [selectedItems, setSelectedItems] = useState<{ id: number, type: 'folder' | 'file' }[]>([]);
+    const [isDragSelecting, setIsDragSelecting] = useState(false);
+    const dragSelectionRef = useRef(false);
 
     // Email Modal State
     const [showEmailModal, setShowEmailModal] = useState(false);
@@ -61,6 +63,12 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
         const handleClick = () => setContextMenu(null);
         document.addEventListener('click', handleClick);
         return () => document.removeEventListener('click', handleClick);
+    }, []);
+
+    useEffect(() => {
+        const handleMouseUp = () => setIsDragSelecting(false);
+        window.addEventListener('mouseup', handleMouseUp);
+        return () => window.removeEventListener('mouseup', handleMouseUp);
     }, []);
 
     useEffect(() => {
@@ -141,7 +149,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
 
             loadItems(currentFolderId);
         } catch (error) {
-            console.error("Failed to create folder", error);
+            console.error("Crearea folderului a eșuat!", error);
         }
     };
 
@@ -156,6 +164,24 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
         } else {
             // Single selection
             setSelectedItems([{ id: item.id, type: item.type }]);
+        }
+    };
+
+
+
+    const handleDragEnter = (e: React.MouseEvent, item: FileSystemItem) => {
+        if (isDragSelecting) {
+            dragSelectionRef.current = true;
+            if (e.ctrlKey) {
+                setSelectedItems(prev => prev.filter(i => !(i.id === item.id && i.type === item.type)));
+            } else {
+                setSelectedItems(prev => {
+                    if (!prev.some(i => i.id === item.id && i.type === item.type)) {
+                        return [...prev, { id: item.id, type: item.type }];
+                    }
+                    return prev;
+                });
+            }
         }
     };
 
@@ -216,7 +242,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
             setEditingItem(null);
             loadItems(currentFolderId);
         } catch (error) {
-            console.error("Failed to rename item", error);
+            console.error("Redenumirea elementului a eșuat!", error);
         }
     };
 
@@ -234,10 +260,10 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
         if (itemsToDelete.length === 1) {
             const item = itemsToDelete[0];
             confirmMessage = item.type === 'folder'
-                ? `Sigur doriți să ștergi folderul "${item.name}"? Acest lucru va duce la ștergerea permanentă a tuturor elementelor sale, adică subfoldere și înregistrări.`
-                : `Sigur doriți să ștergi înregistrarea "${item.name}"?`;
+                ? `Sigur dorești să ștergi folderul "${item.name}"? Acest lucru va duce la ștergerea permanentă a tuturor elementelor sale, adică subfoldere și înregistrări.`
+                : `Sigur dorești să ștergi înregistrarea "${item.name}"?`;
         } else {
-            confirmMessage = `Sigur doriți să ștergeți aceste ${itemsToDelete.length} înregistrări?`;
+            confirmMessage = `Sigur dorești să ștergi aceste ${itemsToDelete.length} înregistrări?`;
         }
 
         if (!confirm(confirmMessage)) return;
@@ -265,7 +291,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
             setSelectedItems([]);
             loadItems(currentFolderId);
         } catch (error) {
-            console.error("Failed to delete items", error);
+            console.error("Ștergerea elementelor a eșuat!", error);
         }
     }
 
@@ -282,7 +308,10 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
 
     // --- Drag & Drop ---
     const handleDragStart = (e: React.DragEvent, item: FileSystemItem) => {
-        e.dataTransfer.setData('application/json', JSON.stringify(item));
+        const targetItems = selectedItems.some(i => i.id === item.id && i.type === item.type)
+            ? selectedItems.map(si => items.find(i => i.id === si.id && i.type === si.type)).filter(Boolean) as FileSystemItem[]
+            : [item];
+        e.dataTransfer.setData('application/json', JSON.stringify(targetItems));
         e.dataTransfer.effectAllowed = 'move';
     };
 
@@ -298,32 +327,41 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
         try {
             const data = e.dataTransfer.getData('application/json');
             if (!data) return;
-            const item = JSON.parse(data) as FileSystemItem;
 
-            if (item.id === targetFolder.id && item.type === 'folder') return; // Cannot drop on self
+            let droppedItems: FileSystemItem[] = [];
+            try {
+                const parsed = JSON.parse(data);
+                if (Array.isArray(parsed)) droppedItems = parsed;
+                else droppedItems = [parsed];
+            } catch (e) { return; }
 
             const userStr = localStorage.getItem('user');
             const user = userStr ? JSON.parse(userStr) : null;
             if (!user) return;
             const effectiveUserId = overrideUserId ?? user.id;
 
-            // @ts-ignore
-            await window.api.library.moveItem({
-                id: item.id,
-                type: item.type,
-                targetFolderId: targetFolder.id,
-                userId: effectiveUserId
-            });
+            for (const item of droppedItems) {
+                if (item.id === targetFolder.id && item.type === 'folder') continue; // Cannot drop on self
 
-            // Add to history
-            try {
-                await window.api.history.add({
-                    userId: user.id,
-                    actionType: 'MOVE',
-                    itemName: item.name
+                // @ts-ignore
+                await window.api.library.moveItem({
+                    id: item.id,
+                    type: item.type,
+                    targetFolderId: targetFolder.id,
+                    userId: effectiveUserId
                 });
-            } catch (e) { }
 
+                // Add to history
+                try {
+                    await window.api.history.add({
+                        userId: user.id,
+                        actionType: 'MOVE',
+                        itemName: item.name
+                    });
+                } catch (e) { }
+            }
+
+            setSelectedItems([]);
             loadItems(currentFolderId);
         } catch (err) {
             console.error("Drop failed", err);
@@ -332,12 +370,18 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
 
     // --- Clipboard ---
     const handleCut = (item: FileSystemItem) => {
-        setClipboard({ action: 'cut', item });
+        const targetItems = selectedItems.some(i => i.id === item.id && i.type === item.type)
+            ? selectedItems.map(si => items.find(i => i.id === si.id && i.type === si.type)).filter(Boolean) as FileSystemItem[]
+            : [item];
+        setClipboard({ action: 'cut', items: targetItems });
         setContextMenu(null);
     };
 
     const handleCopy = (item: FileSystemItem) => {
-        setClipboard({ action: 'copy', item });
+        const targetItems = selectedItems.some(i => i.id === item.id && i.type === item.type)
+            ? selectedItems.map(si => items.find(i => i.id === si.id && i.type === si.type)).filter(Boolean) as FileSystemItem[]
+            : [item];
+        setClipboard({ action: 'copy', items: targetItems });
         setContextMenu(null);
     };
 
@@ -349,41 +393,45 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
             if (!user) return;
             const effectiveUserId = overrideUserId ?? user.id;
 
+            for (const item of clipboard.items) {
+                if (clipboard.action === 'cut') {
+                    // @ts-ignore
+                    await window.api.library.moveItem({
+                        id: item.id,
+                        type: item.type,
+                        targetFolderId: currentFolderId,
+                        userId: effectiveUserId
+                    });
+
+                    // Add to history
+                    try {
+                        await window.api.history.add({
+                            userId: user.id,
+                            actionType: 'MOVE',
+                            itemName: item.name
+                        });
+                    } catch (e) { }
+                } else {
+                    // @ts-ignore
+                    await window.api.library.copyItem({
+                        id: item.id,
+                        type: item.type,
+                        targetFolderId: currentFolderId,
+                        userId: effectiveUserId
+                    });
+                    // Add to history
+                    try {
+                        await window.api.history.add({
+                            userId: user.id,
+                            actionType: 'COPY',
+                            itemName: item.name
+                        });
+                    } catch (e) { }
+                }
+            }
+
             if (clipboard.action === 'cut') {
-                // @ts-ignore
-                await window.api.library.moveItem({
-                    id: clipboard.item.id,
-                    type: clipboard.item.type,
-                    targetFolderId: currentFolderId,
-                    userId: effectiveUserId
-                });
-
-                // Add to history
-                try {
-                    await window.api.history.add({
-                        userId: user.id,
-                        actionType: 'MOVE',
-                        itemName: clipboard.item.name
-                    });
-                } catch (e) { }
-
                 setClipboard(null); // Clear after cut->paste
-            } else {
-                // @ts-ignore
-                await window.api.library.copyItem({
-                    id: clipboard.item.id,
-                    type: clipboard.item.type,
-                    targetFolderId: currentFolderId,
-                    userId: effectiveUserId
-                });
-                // Add to history
-                try {
-                    await window.api.history.add({
-                        userId: user.id,
-                        actionType: 'COPY',
-                        itemName: clipboard.item.name
-                    });
-                } catch (e) { }
             }
             loadItems(currentFolderId);
             setContextMenu(null);
@@ -447,7 +495,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                         alert("Arhiva a fost încărcată cu succes în Google Drive!");
                     }
                 }
-                
+
                 // Add to history (always as logged-in user)
                 try {
                     await window.api.history.add({
@@ -598,7 +646,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                         onClick={() => onSelect && onSelect(currentFolderId)}
                         className="px-4 py-1 bg-blue-600 hover:bg-blue-700 rounded"
                     >
-                        Salvează Aici
+                        Salvează aici
                     </button>
                 )}
             </div>
@@ -626,9 +674,21 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
 
             {/* Content Grid */}
             <div
-                className="flex-1 overflow-auto p-4"
-                onClick={() => { setContextMenu(null); setSelectedItems([]); }}
+                className="flex-1 overflow-auto p-4 select-none"
+                onClick={() => {
+                    if (!dragSelectionRef.current) {
+                        setContextMenu(null);
+                        setSelectedItems([]);
+                    }
+                    dragSelectionRef.current = false;
+                }}
                 onContextMenu={(e) => handleContextMenu(e, null)} // Background context menu
+                onMouseDown={(e) => {
+                    if (!(e.target as HTMLElement).closest('.fe-item')) {
+                        setIsDragSelecting(true);
+                        dragSelectionRef.current = false;
+                    }
+                }}
             >
                 {loading ? (
                     <div className="text-center text-gray-500 mt-10">Se încarcă...</div>
@@ -644,11 +704,13 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                                 onDragStart={(e) => handleDragStart(e, folder)}
                                 onDragOver={(e) => handleDragOver(e, folder)}
                                 onDrop={(e) => handleDrop(e, folder)}
+                                onMouseEnter={(e) => handleDragEnter(e, folder)}
                                 onClick={(e) => { e.stopPropagation(); handleItemClick(e, folder); setContextMenu(null); }}
                                 onDoubleClick={() => handleNavigate(folder)}
                                 onContextMenu={(e) => handleContextMenu(e, folder)}
-                                className={`group relative flex flex-col items-center p-4 rounded-lg cursor-pointer transition-colors border ${selectedItems.some(i => i.id === folder.id && i.type === 'folder') ? 'bg-blue-900/40 border-blue-500' : 'border-transparent hover:bg-gray-800 hover:border-gray-700'} ${clipboard?.item.id === folder.id && clipboard?.action === 'cut' ? 'opacity-50' : ''}`}
+                                className={`fe-item group relative flex flex-col items-center p-4 rounded-lg cursor-pointer transition-colors border ${selectedItems.some(i => i.id === folder.id && i.type === 'folder') ? 'bg-blue-900/40 border-blue-500' : 'border-transparent hover:bg-gray-800 hover:border-gray-700'} ${clipboard?.items.some(i => i.id === folder.id && i.type === 'folder') && clipboard?.action === 'cut' ? 'opacity-50' : ''}`}
                             >
+
                                 <div className="text-5xl mb-2 text-yellow-500">📁</div>
 
                                 {editingItem?.id === folder.id && editingItem?.type === 'folder' ? (
@@ -685,11 +747,13 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                                 key={`file-${file.id}`}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, file)}
+                                onMouseEnter={(e) => handleDragEnter(e, file)}
                                 onClick={(e) => { e.stopPropagation(); handleItemClick(e, file); setContextMenu(null); }}
                                 onDoubleClick={() => onPlay && onPlay(file)}
                                 onContextMenu={(e) => handleContextMenu(e, file)}
-                                className={`group relative flex flex-col items-center p-4 rounded-lg cursor-pointer transition-colors border ${selectedItems.some(i => i.id === file.id && i.type === 'file') ? 'bg-blue-900/40 border-blue-500' : 'border-transparent hover:bg-gray-800 hover:border-gray-700'} ${clipboard?.item.id === file.id && clipboard?.action === 'cut' ? 'opacity-50' : ''}`}
+                                className={`fe-item group relative flex flex-col items-center p-4 rounded-lg cursor-pointer transition-colors border ${selectedItems.some(i => i.id === file.id && i.type === 'file') ? 'bg-blue-900/40 border-blue-500' : 'border-transparent hover:bg-gray-800 hover:border-gray-700'} ${clipboard?.items.some(i => i.id === file.id && i.type === 'file') && clipboard?.action === 'cut' ? 'opacity-50' : ''}`}
                             >
+
                                 <div className="text-5xl mb-2 text-blue-400">
                                     {(file as any).fileType === 'archive' ? '📦' : '🎥'}
                                 </div>
@@ -839,7 +903,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                                 <div>
                                     <label className="text-gray-500 block">Locație</label>
                                     <div className="text-gray-400 text-xs break-all bg-gray-950 p-2 rounded border border-gray-800">
-                                        {detailsItem.filePath}
+                                        {detailsItem.filePath.includes('AppData') ? 'Bază de date (Local)' : detailsItem.filePath}
                                     </div>
                                 </div>
                             )}
@@ -858,11 +922,11 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
             {/* Email Modal */}
             {showEmailModal && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60"
-                     onClick={(e) => e.stopPropagation()}
-                     onKeyDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
                 >
                     <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-2xl w-[400px]">
-                        <h2 className="text-xl font-bold mb-4 text-white">Trimite prin Email</h2>
+                        <h2 className="text-xl font-bold mb-4 text-white">Trimiteți prin Email</h2>
                         <div className="mb-4 text-sm text-gray-400">
                             Fișier selectat: <span className="text-white font-medium">{items.find(i => i.id === selectedItems[0]?.id)?.name}</span>
                         </div>
@@ -909,8 +973,8 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
             {/* Archive Modal */}
             {showArchiveModal && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 pt-10 pb-10 overflow-y-auto"
-                     onClick={(e) => e.stopPropagation()}
-                     onKeyDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
                 >
                     <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-2xl w-[400px] my-auto">
                         <h2 className="text-xl font-bold mb-4 text-white">Salvare arhiva</h2>
@@ -942,7 +1006,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                                 className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white"
                                 disabled={loading}
                             >
-                                Anulează
+                                Anulați
                             </button>
                             <button
                                 onClick={handleConfirmArchive}

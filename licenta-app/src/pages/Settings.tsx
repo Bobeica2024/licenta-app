@@ -14,7 +14,7 @@ const Settings = () => {
             const session = await window.api.drive.getSession();
             setDriveSession(session);
         } catch (err) {
-            console.error('Failed to get session', err);
+            console.error('Eroare la obținerea sesiunii', err);
         }
     };
 
@@ -55,7 +55,7 @@ const Settings = () => {
                 <h3 className="text-xl font-semibold mb-4 text-blue-400">Integrare Google</h3>
 
                 <p className="text-gray-400 mb-6">
-                    Conectați contul Google pentru a salva înregistrările direct în cloud.
+                    Conectează-ți contul Google pentru a salva înregistrările direct în cloud.
                 </p>
 
                 {error && (

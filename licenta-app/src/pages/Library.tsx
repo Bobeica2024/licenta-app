@@ -65,7 +65,7 @@ const Library = () => {
                 {/* Admin: user selector */}
                 {isAdmin && allUsers.length > 0 && (
                     <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-400">👁️ Vizualizează baza de date a:</span>
+                        <span className="text-sm text-gray-400">Vizualizează baza de date a:</span>
                         <select
                             value={viewingUserId ?? ''}
                             onChange={(e) => handleUserChange(e.target.value ? Number(e.target.value) : null)}

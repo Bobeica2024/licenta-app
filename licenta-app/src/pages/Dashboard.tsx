@@ -107,7 +107,7 @@ const Dashboard = () => {
                         // Optional: alert user or just fallback to original
                     }
                 } catch (error) {
-                    console.error('Error calling cropVideo:', error);
+                    console.error('Eroare la apelarea cropVideo:', error);
                 } finally {
                     setIsUploading(false);
                 }
@@ -162,7 +162,7 @@ const Dashboard = () => {
         try {
             const userObj = user ? JSON.parse(user) : null;
             // Use custom title if provided, otherwise default timestamp
-            const finalTitle = recordingTitle.trim() || `Recording ${new Date().toLocaleString()}`;
+            const finalTitle = recordingTitle.trim() || `Se înregistrează ${new Date().toLocaleString()}`;
 
             let result;
 
@@ -182,7 +182,7 @@ const Dashboard = () => {
 
             if (result.success) {
                 if (saveDestination === 'sqlite') {
-                    alert('Salvat cu succes în Bază de Date!');
+                    alert('Salvat cu succes în baza de date!');
                 } else if (saveDestination === 'drive') {
                     alert('Salvat cu succes în Google Drive!');
                 } else {
@@ -190,7 +190,7 @@ const Dashboard = () => {
                 }
                 setRecordingTitle('');
 
-            } else {
+            } else if (result.error !== 'Cancelled' && result.error !== 'Salvare anulată') {
                 alert(`Salvare eșuată: ${result.error}`);
             }
         } catch (err: any) {
@@ -201,7 +201,7 @@ const Dashboard = () => {
     };
 
     const handleDiscard = async () => {
-        if (confirm("Sigur doriți să renunțați la înregistrare?")) {
+        if (confirm("Sigur dorești să renunți la înregistrare?")) {
             await discardRecording();
             if (croppedFilePath) {
                 // @ts-ignore
@@ -224,16 +224,16 @@ const Dashboard = () => {
     }, [isRecording, isPaused]);
 
     const handleVideoPauseCallback = React.useCallback(() => {
-        console.log('Video Paused');
+        console.log('Video pe pauză.');
         const { isRecording, isPaused } = recordingStateRef.current;
         if (isRecording && !isPaused) {
-            console.log('-> Auto-pausing Recording');
+            console.log('-> Pauză automată a înregistrării.');
             pauseRecording();
         }
     }, [pauseRecording]); // pauseRecording from hook might strictly be stable? Let's hope.
 
     const handleVideoPlayCallback = React.useCallback(() => {
-        console.log('Video Playing');
+        console.log('Video în curs de redare');
     }, []);
 
     const handleResumeRecording = () => {
@@ -244,7 +244,7 @@ const Dashboard = () => {
     const loadNewUrl = async (newUrl: string) => {
         if (!newUrl) return;
         if (currentFilePath) {
-            if (confirm("Se pare că ai o înregistrare recentă pe ecran. Doriți să o ștergeți pentru a putea adăuga un videoclip nou?")) {
+            if (confirm("Se pare că ai o înregistrare recentă pe ecran. Dorești să o ștergi pentru a putea adăuga un videoclip nou?")) {
                 await discardRecording();
                 if (croppedFilePath) {
                     // @ts-ignore
@@ -304,21 +304,7 @@ const Dashboard = () => {
                             className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-medium transition-colors"
                             disabled={isRecording}
                         >
-                            Conectați-vă
-                        </button>
-                        <button
-                            onClick={() => loadNewUrl('https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4')}
-                            className="bg-green-600 hover:bg-green-700 px-6 py-2 rounded-lg font-medium transition-colors"
-                            disabled={isRecording}
-                        >
-                            Test MP4
-                        </button>
-                        <button
-                            onClick={() => loadNewUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')}
-                            className="bg-yellow-600 hover:bg-yellow-700 px-6 py-2 rounded-lg font-medium transition-colors"
-                            disabled={isRecording}
-                        >
-                            Test YT
+                            Conectează-te
                         </button>
                         <button
                             onClick={() => {
@@ -327,7 +313,7 @@ const Dashboard = () => {
                             className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-medium transition-colors"
                             disabled={isRecording}
                         >
-                            {showRawYoutube ? 'Arată Player' : 'Încarcă Iframe'}
+                            {showRawYoutube ? 'Golește player-ul' : 'Încarcă video-ul'}
                         </button>
                     </div>
 
@@ -348,7 +334,7 @@ const Dashboard = () => {
                                         controls
                                         className="w-full h-full object-contain"
                                     />
-                                    <p className="text-gray-400 text-sm mt-2">Verificați înregistrarea înainte de salvare.</p>
+                                    <p className="text-gray-400 text-sm mt-2">Verifică înregistrarea înainte de salvare.</p>
                                 </div>
                             ) : url ? (
                                 <StreamPlayer
@@ -381,7 +367,7 @@ const Dashboard = () => {
                                 disabled={!url || isUploading}
                             >
                                 <div className={`w-4 h-4 rounded-full ${!url ? 'bg-gray-500' : 'bg-white animate-pulse'}`} />
-                                {currentFilePath ? "Începeți înregistrare nouă" : "Începeți înregistrarea"}
+                                {currentFilePath ? "Începe înregistrare nouă" : "Începe înregistrarea"}
                             </button>
                         )}
 
@@ -396,7 +382,7 @@ const Dashboard = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     {isPaused ? (
                                         <button onClick={handleResumeRecording} className="py-3 bg-green-600 hover:bg-green-700 rounded-lg font-medium transition-colors">
-                                            Reluați înregistrarea
+                                            Reia înregistrarea
                                         </button>
                                     ) : (
                                         <button onClick={pauseRecording} className="py-3 bg-yellow-600 hover:bg-yellow-700 rounded-lg font-medium transition-colors">
@@ -413,7 +399,7 @@ const Dashboard = () => {
                         {/* 3. PREVIEW / SAVE state */}
                         {!isRecording && currentFilePath && (
                             <div className="space-y-4 animate-fade-in">
-                                <label className="text-sm text-gray-400 block mb-2">Înregistrare Finalizată</label>
+                                <label className="text-sm text-gray-400 block mb-2">Înregistrare finalizată</label>
 
                                 <div className="flex gap-2">
                                     <button
@@ -429,7 +415,7 @@ const Dashboard = () => {
                                         className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-colors flex items-center justify-center gap-2"
                                         disabled={isUploading}
                                     >
-                                        {isUploading ? 'Se salvează...' : '💾 Salvează'}
+                                        {isUploading ? 'Se salvează...' : 'Salvează'}
                                     </button>
                                 </div>
 
@@ -494,7 +480,7 @@ const Dashboard = () => {
                         </div>
 
                         <div className="flex-1 overflow-hidden p-2">
-                            <p className="text-sm text-gray-400 px-2 py-1">Selectați folderul destinație:</p>
+                            <p className="text-sm text-gray-400 px-2 py-1">Selectează folderul destinație:</p>
                             <FileExplorer
                                 mode="select"
                                 onSelect={(folderId) => handleConfirmSave(folderId)}
@@ -525,7 +511,7 @@ const Dashboard = () => {
                             <input
                                 type="text"
                                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                                placeholder="Alege un titlu..."
+                                placeholder="Alegeți un titlu..."
                                 value={recordingTitle}
                                 onChange={(e) => setRecordingTitle(e.target.value)}
                             />

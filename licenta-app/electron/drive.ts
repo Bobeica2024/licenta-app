@@ -204,7 +204,7 @@ export function setupDriveHandlers() {
       const fileBuffer = fs.readFileSync(filePath);
       const fileBase64 = fileBuffer.toString('base64');
       const subjectEncoded = subject || 'Fișier atașat de la FragMan';
-      const textBody = text || 'Găsiți atașat fișierul dumneavoastră.';
+      const textBody = text || 'Găsește atașat fișierul tău.';
 
       // Detect MIME type from extension
       const ext = path.extname(fileName).toLowerCase();

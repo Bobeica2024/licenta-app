@@ -201,9 +201,9 @@ export function setupLibraryHandlers() {
 
                 // 3. Copy direct files
                 const files = db.prepare('SELECT * FROM fragments WHERE folder_id = ? AND user_id = ?').all(sourceId, userId) as any[];
-                const copyFileStmt = db.prepare('INSERT INTO fragments (user_id, title, duration, file_path, created_at, folder_id) VALUES (?, ?, ?, ?, ?, ?)');
+                const copyFileStmt = db.prepare('INSERT INTO fragments (user_id, title, type, source_url, file_path, drive_id, created_at, folder_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
                 for (const file of files) {
-                    copyFileStmt.run(userId, file.title, file.duration, file.file_path, new Date().toISOString(), newFolderId);
+                    copyFileStmt.run(userId, file.title, file.type, file.source_url, file.file_path, file.drive_id, new Date().toISOString(), newFolderId);
                 }
 
                 // 4. Recurse for subfolders
@@ -221,8 +221,8 @@ export function setupLibraryHandlers() {
                 // Single file copy
                 const file = db.prepare('SELECT * FROM fragments WHERE id = ? AND user_id = ?').get(id, userId) as any;
                 if (file) {
-                    const stmt = db.prepare('INSERT INTO fragments (user_id, title, duration, file_path, created_at, folder_id) VALUES (?, ?, ?, ?, ?, ?)');
-                    stmt.run(userId, file.title + ' - Copy', file.duration, file.file_path, new Date().toISOString(), targetFolderId || null);
+                    const stmt = db.prepare('INSERT INTO fragments (user_id, title, type, source_url, file_path, drive_id, created_at, folder_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+                    stmt.run(userId, file.title + ' - Copy', file.type, file.source_url, file.file_path, file.drive_id, new Date().toISOString(), targetFolderId || null);
                 }
             }
             return { success: true };

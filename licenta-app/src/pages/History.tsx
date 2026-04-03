@@ -8,13 +8,21 @@ const History = () => {
     const [playingFile, setPlayingFile] = useState<{ name: string, filePath: string } | null>(null);
     // Admin: filter by user ('all' | specific userId as string)
     const [filterUserId, setFilterUserId] = useState<string>('all');
+    const [allUsers, setAllUsers] = useState<{ id: number; username: string }[]>([]);
 
     const userStr = localStorage.getItem('user');
     const user = userStr ? JSON.parse(userStr) : null;
 
     useEffect(() => {
         loadHistory();
-    }, []);
+        if (user?.isAdmin) {
+            window.api.admin.getUsers({ isAdmin: true }).then((res: any) => {
+                if (res.success && res.users) {
+                    setAllUsers(res.users);
+                }
+            });
+        }
+    }, [user?.isAdmin]);
 
     const loadHistory = async () => {
         if (!user) return;
@@ -44,11 +52,11 @@ const History = () => {
                     successCount++;
                 }
             }
-            
+
             if (successCount < ids.length) {
                 alert(`Unele înregistrări nu au putut fi șterse (${successCount}/${ids.length} reușite).`);
             }
-            
+
             setSelectedItems([]);
             loadHistory(); // Reload history
         } catch (e) {
@@ -104,21 +112,10 @@ const History = () => {
     };
 
     if (!user) {
-        return <div className="p-8 text-center text-red-500">Trebuie să fii autentificat pentru a vedea istoricul.</div>;
+        return <div className="p-8 text-center text-red-500">Trebuie să fi autentificat pentru a vedea istoricul.</div>;
     }
 
-    // Unique users in history (for admin filter dropdown)
-    const uniqueUsers: { id: number; username: string }[] = [];
-    if (user.isAdmin) {
-        const seen = new Set<number>();
-        history.forEach(item => {
-            if (!seen.has(item.user_id)) {
-                seen.add(item.user_id);
-                uniqueUsers.push({ id: item.user_id, username: item.username });
-            }
-        });
-        uniqueUsers.sort((a, b) => a.username.localeCompare(b.username));
-    }
+
 
     const filteredHistory = user.isAdmin && filterUserId !== 'all'
         ? history.filter(item => String(item.user_id) === filterUserId)
@@ -126,12 +123,12 @@ const History = () => {
 
     return (
         <div className="flex-1 p-8 bg-gray-950 text-white overflow-auto h-full">
-            <h2 className="text-3xl font-bold mb-6 text-blue-500">Istoric Operațiuni</h2>
+            <h2 className="text-3xl font-bold mb-6 text-blue-500">Istoric operațiuni</h2>
 
             {user.isAdmin && (
                 <div className="mb-6 flex flex-wrap items-center gap-4">
                     <div className="p-4 bg-blue-900/20 border border-blue-900/50 rounded-lg text-blue-200 flex-1">
-                        Sunteți autentificat ca Administrator. Vedeți istoricul tuturor utilizatorilor.
+                        Ești autentificat ca administrator. Vezi istoricul tuturor utilizatorilor.
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-gray-400 whitespace-nowrap">👤 Filtrează după utilizator:</span>
@@ -142,7 +139,7 @@ const History = () => {
                         >
                             <option value="all">Toți utilizatorii</option>
                             <option value={String(user.id)}>Doar eu</option>
-                            {uniqueUsers.filter(u => u.id !== user.id).map(u => (
+                            {allUsers.filter(u => u.id !== user.id).map(u => (
                                 <option key={u.id} value={String(u.id)}>{u.username}</option>
                             ))}
                         </select>
@@ -165,7 +162,7 @@ const History = () => {
                         onClick={() => handleDelete(selectedItems)}
                         className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition-colors text-sm font-medium"
                     >
-                        Șterge Selecția
+                        Șterge selecția
                     </button>
                 </div>
             )}
@@ -182,8 +179,8 @@ const History = () => {
                         <thead>
                             <tr className="bg-gray-800 border-b border-gray-700">
                                 <th className="p-4 w-10">
-                                    <input 
-                                        type="checkbox" 
+                                    <input
+                                        type="checkbox"
                                         className="w-4 h-4 rounded border-gray-600 bg-gray-700 focus:ring-blue-500"
                                         checked={filteredHistory.length > 0 && selectedItems.length === filteredHistory.length}
                                         onChange={toggleAll}
@@ -198,15 +195,15 @@ const History = () => {
                         </thead>
                         <tbody>
                             {filteredHistory.map((item) => (
-                                <tr 
-                                    key={item.id} 
+                                <tr
+                                    key={item.id}
                                     className={`border-b border-gray-800 hover:bg-gray-800/50 transition-colors ${selectedItems.includes(item.id) ? 'bg-blue-900/20' : ''}`}
                                     onClick={(e) => handleRowClick(e, item.id)}
                                     style={{ cursor: 'pointer' }}
                                 >
                                     <td className="p-4 w-10 text-center" onClick={(e) => e.stopPropagation()}>
-                                        <input 
-                                            type="checkbox" 
+                                        <input
+                                            type="checkbox"
                                             className="w-4 h-4 rounded border-gray-600 bg-gray-700 focus:ring-blue-500"
                                             checked={selectedItems.includes(item.id)}
                                             onChange={() => toggleSelection(item.id)}

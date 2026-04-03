@@ -32,10 +32,10 @@ const GoogleDrivePicker: React.FC<GoogleDrivePickerProps> = ({ onSelect, onCance
             if (result.success && result.folders) {
                 setFolders(result.folders);
             } else {
-                setError(result.error || 'Eroare la încărcarea folderelor');
+                setError(result.error || 'Eroare la încărcarea folderelor.');
             }
         } catch (err: any) {
-            setError(err.message || 'Eroare la comunicarea cu serverul');
+            setError(err.message || 'Eroare la comunicarea cu serverul.');
         } finally {
             setLoading(false);
         }
@@ -138,7 +138,7 @@ const GoogleDrivePicker: React.FC<GoogleDrivePickerProps> = ({ onSelect, onCance
                     onClick={() => onSelect(currentFolderId === 'root' ? null : currentFolderId)}
                     className="px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm font-bold transition-colors shadow-lg shadow-blue-900/50 flex items-center gap-2"
                 >
-                    💾 Salvare în {currentPath[currentPath.length - 1].name}
+                    Salvare în {currentPath[currentPath.length - 1].name}
                 </button>
             </div>
         </div>

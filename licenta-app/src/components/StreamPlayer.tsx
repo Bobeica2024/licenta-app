@@ -93,7 +93,7 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
                     onProgress={(p: { playedSeconds: number }) => console.log('StreamPlayer: Progress', p.playedSeconds)}
                     onError={(e) => {
                         console.error('StreamPlayer Error:', e);
-                        setError("Nu s-a putut încărca videoclipul. Verificați URL-ul sau conexiunea.");
+                        setError("Nu s-a putut încărca videoclipul. Verifică URL-ul sau conexiunea.");
                     }}
                     onPlay={() => {
                         setPlaying(true);

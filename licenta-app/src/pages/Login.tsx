@@ -27,13 +27,13 @@ const Login = () => {
         const { username, password, confirmPassword, hint } = formData;
 
         if (!username || !password) {
-            setError('Vă rog completați toate câmpurile obligatorii');
+            setError('Te rog să completezi toate câmpurile obligatorii!');
             return;
         }
 
         if (isRegistering) {
             if (password !== confirmPassword) {
-                setError('Parolele nu se potrivesc');
+                setError('Parolele nu se potrivesc!');
                 return;
             }
 
@@ -42,12 +42,12 @@ const Login = () => {
                 if (result.success) {
                     setIsRegistering(false);
                     setError(null);
-                    alert('Cont creat cu succes! Vă rog să vă autentificați.');
+                    alert('Cont creat cu succes! Te rog să te autentifici.');
                 } else {
-                    setError(result.error || 'Înregistrare eșuată');
+                    setError(result.error || 'Înregistrare eșuată.');
                 }
             } catch (err) {
-                setError('A apărut o eroare neașteptată');
+                setError('A apărut o eroare neașteptată.');
             }
         } else {
             try {
@@ -60,14 +60,14 @@ const Login = () => {
                     setError(result.error || 'Autentificare eșuată');
                 }
             } catch (err) {
-                setError('A apărut o eroare neașteptată');
+                setError('A apărut o eroare neașteptată.');
             }
         }
     };
 
     const handleForgotPassword = async () => {
         if (!formData.username) {
-            setError('Introdu numele de utilizator pentru a vedea indiciul');
+            setError('Introdu numele de utilizator pentru a vedea indiciul.');
             return;
         }
 
@@ -79,7 +79,7 @@ const Login = () => {
                 setError('Niciun indiciu găsit pentru acest utilizator');
             }
         } catch (err) {
-            setError('Nu am putut prelua indiciul');
+            setError('Nu am putut prelua indiciul.');
         }
     };
 
@@ -111,7 +111,7 @@ const Login = () => {
                             value={formData.username}
                             onChange={handleChange}
                             className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-4 focus:outline-none focus:border-blue-500 transition-colors"
-                            placeholder="Introdu nume utilizator"
+                            placeholder="Introduceți numele de utilizator"
                         />
                     </div>
 
@@ -123,14 +123,14 @@ const Login = () => {
                             value={formData.password}
                             onChange={handleChange}
                             className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-4 focus:outline-none focus:border-blue-500 transition-colors"
-                            placeholder="Introdu parolă"
+                            placeholder="Introduceți parola"
                         />
                     </div>
 
                     {isRegistering && (
                         <>
                             <div>
-                                <label className="block text-sm font-medium mb-1 text-gray-400">Confirmați parola</label>
+                                <label className="block text-sm font-medium mb-1 text-gray-400">Confirmă parola</label>
                                 <input
                                     name="confirmPassword"
                                     type="password"
@@ -148,7 +148,7 @@ const Login = () => {
                                     value={formData.hint}
                                     onChange={handleChange}
                                     className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-4 focus:outline-none focus:border-blue-500 transition-colors"
-                                    placeholder="Introdu un indiciu în caz că uiți parola"
+                                    placeholder="Introdu un indiciu în caz că ai uitat parola"
                                 />
                             </div>
                         </>
@@ -164,7 +164,7 @@ const Login = () => {
 
                 <div className="mt-6 text-center text-sm text-gray-400">
                     <p>
-                        {isRegistering ? 'Aveți deja cont?' : "Nu aveți cont?"}
+                        {isRegistering ? 'Ai deja cont?' : "Nu ai cont?"}
                         <button
                             type="button"
                             onClick={() => { setIsRegistering(!isRegistering); setError(null); setHintDisplay(null); }}
@@ -179,7 +179,7 @@ const Login = () => {
                             onClick={handleForgotPassword}
                             className="mt-2 text-gray-500 hover:text-gray-400 cursor-pointer hover:underline"
                         >
-                            Ați uitat parola?
+                            Ai uitat parola?
                         </button>
                     )}
                 </div>
@@ -194,7 +194,7 @@ const Login = () => {
                         }}
                         className="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded-lg transition-colors"
                     >
-                        Continuați ca oaspete (neautentificat)
+                        Continuă ca oaspete (neautentificat)
                     </button>
                 </div>
             </div>

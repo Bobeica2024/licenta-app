@@ -22,7 +22,7 @@ const Users = () => {
 
     const loadUsers = async () => {
         if (!currentUser || !currentUser.isAdmin) {
-            setError('Acces Neautorizat');
+            setError('Acces neautorizat');
             setLoading(false);
             return;
         }
@@ -43,7 +43,7 @@ const Users = () => {
     };
 
     const handleDeleteUser = async (targetUserId: number, username: string) => {
-        if (!confirm(`Sunteți complet sigur că doriți să ștergeți utilizatorul ${username}? Toate datele asociate vor fi eliminate!`)) return;
+        if (!confirm(`Ești complet sigur că dorești să ștergi utilizatorul ${username}? Toate datele asociate vor fi eliminate!`)) return;
 
         try {
             const result = await window.api.admin.deleteUser({ targetUserId, isAdmin: true });
@@ -111,7 +111,7 @@ const Users = () => {
             <h2 className="text-3xl font-bold mb-6 text-red-500">Gestiune Utilizatori</h2>
 
             <p className="text-gray-400 mb-6 max-w-2xl">
-                Din acest panou puteți vizualiza și elimina utilizatorii din aplicație. Conturile cu drepturi de administrator (ex: bobeicastefan) nu pot fi șterse.
+                Din acest panou poți vizualiza și elimina utilizatorii din aplicație. Conturile cu drepturi de administrator (ex: bobeicastefan) nu pot fi șterse.
             </p>
 
             {error && (
@@ -140,37 +140,37 @@ const Users = () => {
                         {users
                             .filter((u) => u.username.toLowerCase().includes(search.toLowerCase()))
                             .map((u) => (
-                        <div key={u.id} className={`p-6 rounded-xl border ${u.is_admin ? 'bg-red-900/20 border-red-900/50' : 'bg-gray-900 border-gray-800'}`}>
-                            <div className="flex justify-between items-start mb-4">
-                                <div>
-                                    <h3 className="text-xl font-bold">{u.username}</h3>
-                                    <p className="text-sm text-gray-400 mt-1">ID Cont: #{u.id}</p>
-                                </div>
-                                {u.is_admin ? (
-                                    <span className="bg-red-500/20 text-red-400 px-3 py-1 text-xs rounded-full font-bold uppercase tracking-wider">Admin</span>
-                                ) : (
-                                    <span className="bg-blue-500/20 text-blue-400 px-3 py-1 text-xs rounded-full font-bold uppercase tracking-wider">User</span>
-                                )}
-                            </div>
+                                <div key={u.id} className={`p-6 rounded-xl border ${u.is_admin ? 'bg-red-900/20 border-red-900/50' : 'bg-gray-900 border-gray-800'}`}>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h3 className="text-xl font-bold">{u.username}</h3>
+                                            <p className="text-sm text-gray-400 mt-1">ID Cont: #{u.id}</p>
+                                        </div>
+                                        {u.is_admin ? (
+                                            <span className="bg-red-500/20 text-red-400 px-3 py-1 text-xs rounded-full font-bold uppercase tracking-wider">Admin</span>
+                                        ) : (
+                                            <span className="bg-blue-500/20 text-blue-400 px-3 py-1 text-xs rounded-full font-bold uppercase tracking-wider">User</span>
+                                        )}
+                                    </div>
 
-                            {!u.is_admin && (
-                                <div className="flex flex-col gap-2 mt-4">
-                                    <button
-                                        onClick={() => openResetModal({ id: u.id, username: u.username })}
-                                        className="w-full py-2 bg-gray-700 hover:bg-blue-700 text-gray-200 hover:text-white rounded-lg transition-colors font-medium text-sm"
-                                    >
-                                        🔑 Schimbă Parola
-                                    </button>
-                                    <button
-                                        onClick={() => handleDeleteUser(u.id, u.username)}
-                                        className="w-full py-2 bg-gray-800 hover:bg-red-600 text-gray-300 hover:text-white rounded-lg transition-colors font-medium text-sm"
-                                    >
-                                        🗑️ Șterge Cont
-                                    </button>
+                                    {!u.is_admin && (
+                                        <div className="flex flex-col gap-2 mt-4">
+                                            <button
+                                                onClick={() => openResetModal({ id: u.id, username: u.username })}
+                                                className="w-full py-2 bg-gray-700 hover:bg-blue-700 text-gray-200 hover:text-white rounded-lg transition-colors font-medium text-sm"
+                                            >
+                                                🔑 Schimbă Parola
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteUser(u.id, u.username)}
+                                                className="w-full py-2 bg-gray-800 hover:bg-red-600 text-gray-300 hover:text-white rounded-lg transition-colors font-medium text-sm"
+                                            >
+                                                🗑️ Șterge Cont
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
-                        </div>
-                        ))}
+                            ))}
                     </div>
                 </>
             )}
