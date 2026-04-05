@@ -87,7 +87,7 @@ const Login = () => {
         <div className="min-h-screen bg-gray-950 flex items-center justify-center text-white">
             <div className="w-full max-w-md p-8 bg-gray-900 rounded-xl border border-gray-800 shadow-2xl">
                 <h2 className="text-3xl font-bold mb-6 text-center text-blue-500">
-                    {isRegistering ? 'Creează Cont' : 'Bine ai revenit'}
+                    {isRegistering ? 'Creează Cont' : 'Bine ai revenit!'}
                 </h2>
 
                 {error && (
@@ -111,7 +111,7 @@ const Login = () => {
                             value={formData.username}
                             onChange={handleChange}
                             className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-4 focus:outline-none focus:border-blue-500 transition-colors"
-                            placeholder="Introduceți numele de utilizator"
+                            placeholder="Introdu numele de utilizator"
                         />
                     </div>
 
@@ -123,7 +123,7 @@ const Login = () => {
                             value={formData.password}
                             onChange={handleChange}
                             className="w-full bg-gray-800 border border-gray-700 rounded-lg py-2 px-4 focus:outline-none focus:border-blue-500 transition-colors"
-                            placeholder="Introduceți parola"
+                            placeholder="Introdu parola"
                         />
                     </div>
 

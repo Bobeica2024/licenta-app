@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import GoogleDrivePicker from './GoogleDrivePicker';
 
 interface FileSystemItem {
     id: number;
@@ -56,6 +57,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
 
     // Archive Modal State
     const [showArchiveModal, setShowArchiveModal] = useState(false);
+    const [showDrivePickerForArchive, setShowDrivePickerForArchive] = useState(false);
     const [archiveData, setArchiveData] = useState({ name: '', destination: 'db' as 'local' | 'db' | 'drive' });
 
     // Close context menu on click elsewhere
@@ -196,7 +198,17 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
             }
         }
 
-        setContextMenu({ x: e.pageX, y: e.pageY, item: item as any }); // item can be null for background
+        let x = e.pageX;
+        let y = e.pageY;
+        
+        // Previne ieșirea meniului în afara ecranului (jos sau în dreapta)
+        const menuWidth = 200; // Lățimea aproximativă a meniului
+        const menuHeight = 280; // Înălțimea aproximativă când sunt multe opțiuni
+
+        if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
+        if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+
+        setContextMenu({ x, y, item: item as any }); // item can be null for background
     };
 
     const startRenaming = (item: FileSystemItem) => {
@@ -448,13 +460,13 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
         setShowArchiveModal(true);
     };
 
-    const handleConfirmArchive = async () => {
+    const handleConfirmArchive = async (folderIdFromPicker?: string | number | null) => {
         if (!archiveData.name.trim()) {
             alert("Numele arhivei este obligatoriu.");
             return;
         }
 
-        if (archiveData.destination === 'drive') {
+        if (archiveData.destination === 'drive' && folderIdFromPicker === undefined) {
             const session = await window.api.drive.getSession();
             if (!session.isLoggedIn) {
                 const authResult = await window.api.drive.authenticate();
@@ -463,8 +475,11 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                     return;
                 }
             }
+            setShowDrivePickerForArchive(true);
+            return;
         }
 
+        setShowDrivePickerForArchive(false);
         setLoading(true);
         try {
             const userStr = localStorage.getItem('user');
@@ -486,7 +501,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                     const uploadResult = await window.api.drive.upload(
                         result.filePath,
                         undefined,
-                        undefined,
+                        folderIdFromPicker ? String(folderIdFromPicker) : undefined,
                         result.fileName
                     );
                     if (!uploadResult.success) {
@@ -1009,12 +1024,37 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                                 Anulați
                             </button>
                             <button
-                                onClick={handleConfirmArchive}
+                                onClick={() => handleConfirmArchive()}
                                 className="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg flex items-center"
                                 disabled={loading || !archiveData.name.trim()}
                             >
                                 {loading ? 'Se procesează...' : 'Arhivează și salvează'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Google Drive Picker Modal for Archive */}
+            {showDrivePickerForArchive && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                    <div className="bg-gray-900 w-[800px] h-[600px] rounded-xl flex flex-col border border-gray-700 shadow-2xl">
+                        <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-800 rounded-t-xl">
+                            <h3 className="font-bold text-xl text-white flex items-center gap-2">
+                                <span className="text-blue-500">☁️</span> Salvare Arhivă în Google Drive
+                            </h3>
+                            <button
+                                onClick={() => setShowDrivePickerForArchive(false)}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-hidden p-4">
+                            <GoogleDrivePicker
+                                onSelect={(folderId) => handleConfirmArchive(folderId)}
+                                onCancel={() => setShowDrivePickerForArchive(false)}
+                            />
                         </div>
                     </div>
                 </div>

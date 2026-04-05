@@ -242,7 +242,11 @@ const Dashboard = () => {
     };
 
     const loadNewUrl = async (newUrl: string) => {
-        if (!newUrl) return;
+        if (!newUrl) {
+            setUrl('');
+            setShowRawYoutube(false);
+            return;
+        }
         if (currentFilePath) {
             if (confirm("Se pare că ai o înregistrare recentă pe ecran. Dorești să o ștergi pentru a putea adăuga un videoclip nou?")) {
                 await discardRecording();
@@ -294,7 +298,7 @@ const Dashboard = () => {
                         <input
                             type="text"
                             className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
-                            placeholder="Introduceți URL Youtube..."
+                            placeholder="Introdu URL Youtube..."
                             value={inputUrl}
                             onChange={(e) => setInputUrl(e.target.value)}
                             disabled={isRecording}
@@ -308,6 +312,11 @@ const Dashboard = () => {
                         </button>
                         <button
                             onClick={() => {
+                                // Dacă încearcă să încarce, dar căsuța e goală, scoatem video-ul vechi
+                                if (!showRawYoutube && !inputUrl.trim()) {
+                                    setUrl('');
+                                    return;
+                                }
                                 setShowRawYoutube(prev => !prev);
                             }}
                             className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-medium transition-colors"
@@ -473,7 +482,7 @@ const Dashboard = () => {
                             <input
                                 type="text"
                                 className="w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                                placeholder="Introdul titlul aici..."
+                                placeholder="Introdu titlul aici..."
                                 value={recordingTitle}
                                 onChange={(e) => setRecordingTitle(e.target.value)}
                             />
