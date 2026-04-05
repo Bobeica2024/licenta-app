@@ -147,4 +147,24 @@ export function setupHistoryHandlers() {
             return { success: false, error: 'Failed to reset password' };
         }
     });
+
+    // Schimbare username user (doar pentru admin)
+    ipcMain.handle('admin:change-username', async (_, { targetUserId, newUsername, isAdmin }) => {
+        try {
+            if (!isAdmin) return { success: false, error: 'Unauthorized' };
+
+            const target = db.prepare('SELECT id, is_admin FROM users WHERE id = ?').get(targetUserId) as any;
+            if (!target) return { success: false, error: 'User not found' };
+            if (target.is_admin) return { success: false, error: 'Cannot change admin username from here' };
+
+            db.prepare('UPDATE users SET username = ? WHERE id = ?').run(newUsername, targetUserId);
+            return { success: true };
+        } catch (error: any) {
+            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+                return { success: false, error: 'Acest nume de utilizator este deja folosit. Vă rugăm să alegeți altul!' };
+            }
+            console.error('Change username error:', error);
+            return { success: false, error: 'Failed to change username' };
+        }
+    });
 }

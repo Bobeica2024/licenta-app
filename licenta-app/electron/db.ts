@@ -74,18 +74,28 @@ try {
     db.exec('ALTER TABLE fragments ADD COLUMN type TEXT DEFAULT "video"');
   }
 
-  // Create or ensure default admin 'bobeicastefan' has is_admin = 1
+  // Rename old admin if it exists
+  const oldAdminStmt = db.prepare('SELECT id FROM users WHERE username = ?');
+  const oldAdmin = oldAdminStmt.get('bobeicastefan') as any;
+  if (oldAdmin) {
+    console.log('Migrating old admin bobeicastefan to admin...');
+    try {
+        db.prepare('UPDATE users SET username = ? WHERE id = ?').run('admin', oldAdmin.id);
+    } catch(e) { } // In case 'admin' already exists somehow
+  }
+
+  // Create or ensure default admin 'admin' has is_admin = 1
   const adminStmt = db.prepare('SELECT id, is_admin FROM users WHERE username = ?');
-  const admin = adminStmt.get('bobeicastefan') as any;
+  const admin = adminStmt.get('admin') as any;
   if (!admin) {
     console.log('Creating default admin user...');
     const insertAdmin = db.prepare('INSERT INTO users (username, password_hash, hint, is_admin) VALUES (?, ?, ?, ?)');
     const hash = bcrypt.hashSync('ProGoMoRe2026', SALT_ROUNDS);
-    insertAdmin.run('bobeicastefan', hash, 'Admin default account', 1);
+    insertAdmin.run('admin', hash, 'Admin default account', 1);
   } else if (!admin.is_admin) {
     // Account existed but is_admin was not set (e.g. created before migration)
-    console.log('Updating bobeicastefan to admin...');
-    db.prepare('UPDATE users SET is_admin = 1 WHERE username = ?').run('bobeicastefan');
+    console.log('Updating admin to admin rights...');
+    db.prepare('UPDATE users SET is_admin = 1 WHERE username = ?').run('admin');
   }
 
 } catch (err) {

@@ -30,6 +30,8 @@ try {
       login: (credentials: any) => ipcRenderer.invoke('auth:login', credentials),
       register: (details: any) => ipcRenderer.invoke('auth:register', details),
       getHint: (username: string) => ipcRenderer.invoke('auth:get-hint', username),
+      changeUsername: (data: any) => ipcRenderer.invoke('auth:change-username', data),
+      changePassword: (data: any) => ipcRenderer.invoke('auth:change-password', data),
     },
     recorder: {
       getSources: () => ipcRenderer.invoke('recorder:get-sources'),
@@ -68,6 +70,7 @@ try {
       getUsers: (data: any) => ipcRenderer.invoke('admin:get-users', data),
       deleteUser: (data: any) => ipcRenderer.invoke('admin:delete-user', data),
       resetPassword: (data: any) => ipcRenderer.invoke('admin:reset-password', data),
+      changeUsername: (data: any) => ipcRenderer.invoke('admin:change-username', data),
     },
     archive: {
       create: (data: any) => ipcRenderer.invoke('archive:create', data),

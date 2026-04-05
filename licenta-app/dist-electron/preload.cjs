@@ -25,7 +25,9 @@ try {
     auth: {
       login: (credentials) => electron.ipcRenderer.invoke("auth:login", credentials),
       register: (details) => electron.ipcRenderer.invoke("auth:register", details),
-      getHint: (username) => electron.ipcRenderer.invoke("auth:get-hint", username)
+      getHint: (username) => electron.ipcRenderer.invoke("auth:get-hint", username),
+      changeUsername: (data) => electron.ipcRenderer.invoke("auth:change-username", data),
+      changePassword: (data) => electron.ipcRenderer.invoke("auth:change-password", data)
     },
     recorder: {
       getSources: () => electron.ipcRenderer.invoke("recorder:get-sources"),
@@ -63,7 +65,8 @@ try {
     admin: {
       getUsers: (data) => electron.ipcRenderer.invoke("admin:get-users", data),
       deleteUser: (data) => electron.ipcRenderer.invoke("admin:delete-user", data),
-      resetPassword: (data) => electron.ipcRenderer.invoke("admin:reset-password", data)
+      resetPassword: (data) => electron.ipcRenderer.invoke("admin:reset-password", data),
+      changeUsername: (data) => electron.ipcRenderer.invoke("admin:change-username", data)
     },
     archive: {
       create: (data) => electron.ipcRenderer.invoke("archive:create", data)

@@ -51,4 +51,28 @@ export function setupAuthHandlers() {
             return { success: false, error: 'Failed to retrieve hint' };
         }
     });
+
+    ipcMain.handle('auth:change-username', async (_, { userId, newUsername }) => {
+        try {
+            db.prepare('UPDATE users SET username = ? WHERE id = ?').run(newUsername, userId);
+            return { success: true };
+        } catch (error: any) {
+            if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+                return { success: false, error: 'Acest nume de utilizator este deja folosit. Vă rugăm să alegeți altul!' };
+            }
+            console.error('Change username error:', error);
+            return { success: false, error: 'Eroare la schimbarea numelui' };
+        }
+    });
+
+    ipcMain.handle('auth:change-password', async (_, { userId, newPassword }) => {
+        try {
+            const hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+            db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, userId);
+            return { success: true };
+        } catch (error: any) {
+            console.error('Change password error:', error);
+            return { success: false, error: 'Eroare la schimbarea parolei' };
+        }
+    });
 }

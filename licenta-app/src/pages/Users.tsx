@@ -13,6 +13,12 @@ const Users = () => {
     const [resetError, setResetError] = useState<string | null>(null);
     const [resetLoading, setResetLoading] = useState(false);
 
+    // Change Name modal state
+    const [nameTarget, setNameTarget] = useState<{ id: number; username: string } | null>(null);
+    const [newName, setNewName] = useState('');
+    const [nameError, setNameError] = useState<string | null>(null);
+    const [nameLoading, setNameLoading] = useState(false);
+
     const userStr = localStorage.getItem('user');
     const currentUser = userStr ? JSON.parse(userStr) : null;
 
@@ -71,6 +77,18 @@ const Users = () => {
         setResetError(null);
     };
 
+    const openNameModal = (user: { id: number; username: string }) => {
+        setNameTarget(user);
+        setNewName(user.username);
+        setNameError(null);
+    };
+
+    const closeNameModal = () => {
+        setNameTarget(null);
+        setNewName('');
+        setNameError(null);
+    };
+
     const handleResetPassword = async () => {
         if (!newPassword || newPassword.length < 6) {
             setResetError('Parola trebuie să aibă cel puțin 6 caractere.');
@@ -102,8 +120,41 @@ const Users = () => {
         }
     };
 
+    const handleChangeName = async () => {
+        if (!newName.trim() || newName.length < 3) {
+            setNameError('Numele trebuie să aibă cel puțin 3 caractere.');
+            return;
+        }
+
+        if (newName === nameTarget!.username) {
+            closeNameModal();
+            return;
+        }
+
+        setNameLoading(true);
+        setNameError(null);
+        try {
+            const result = await window.api.admin.changeUsername({
+                targetUserId: nameTarget!.id,
+                newUsername: newName,
+                isAdmin: true,
+            });
+            if (result.success) {
+                alert(`Numele utilizatorului a fost schimbat cu succes în "${newName}"!`);
+                closeNameModal();
+                loadUsers();
+            } else {
+                setNameError(result.error || 'Schimbarea a eșuat.');
+            }
+        } catch (e) {
+            setNameError('A apărut o eroare neașteptată.');
+        } finally {
+            setNameLoading(false);
+        }
+    };
+
     if (!currentUser || !currentUser.isAdmin) {
-        return <div className="p-8 text-center text-red-500 font-bold text-xl">Acces Interzis. Această pagină este rezervată Administratorilor.</div>;
+        return <div className="p-8 text-center text-red-500 font-bold text-xl">Acces interzis. Această pagină este rezervată administratorilor.</div>;
     }
 
     return (
@@ -111,7 +162,7 @@ const Users = () => {
             <h2 className="text-3xl font-bold mb-6 text-red-500">Gestiune Utilizatori</h2>
 
             <p className="text-gray-400 mb-6 max-w-2xl">
-                Din acest panou poți vizualiza și elimina utilizatorii din aplicație. Conturile cu drepturi de administrator (ex: bobeicastefan) nu pot fi șterse.
+                Din acest panou poți vizualiza și elimina utilizatorii din aplicație. Conturile cu drepturi de administrator (ex: admin) nu pot fi șterse.
             </p>
 
             {error && (
@@ -156,16 +207,22 @@ const Users = () => {
                                     {!u.is_admin && (
                                         <div className="flex flex-col gap-2 mt-4">
                                             <button
+                                                onClick={() => openNameModal({ id: u.id, username: u.username })}
+                                                className="w-full py-2 bg-gray-700 hover:bg-green-700 text-gray-200 hover:text-white rounded-lg transition-colors font-medium text-sm"
+                                            >
+                                                Schimbă nume
+                                            </button>
+                                            <button
                                                 onClick={() => openResetModal({ id: u.id, username: u.username })}
                                                 className="w-full py-2 bg-gray-700 hover:bg-blue-700 text-gray-200 hover:text-white rounded-lg transition-colors font-medium text-sm"
                                             >
-                                                🔑 Schimbă Parola
+                                                Schimbă parola
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteUser(u.id, u.username)}
                                                 className="w-full py-2 bg-gray-800 hover:bg-red-600 text-gray-300 hover:text-white rounded-lg transition-colors font-medium text-sm"
                                             >
-                                                🗑️ Șterge Cont
+                                                Șterge cont
                                             </button>
                                         </div>
                                     )}
@@ -228,7 +285,57 @@ const Users = () => {
                                 disabled={resetLoading}
                                 className="flex-[2] py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
                             >
-                                {resetLoading ? 'Se salvează...' : '✅ Salvează Parola'}
+                                {resetLoading ? 'Se salvează...' : 'Salvează parola'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Change Username Modal */}
+            {nameTarget && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                    <div className="bg-gray-900 w-full max-w-md rounded-xl border border-gray-700 shadow-2xl p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-bold text-white">
+                                Schimbă nume pentru <span className="text-green-400">{nameTarget.username}</span>
+                            </h3>
+                            <button onClick={closeNameModal} className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
+                        </div>
+
+                        {nameError && (
+                            <div className="mb-4 p-3 bg-red-900/50 border border-red-800 rounded text-red-200 text-sm">
+                                {nameError}
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-gray-400 mb-1">Nume nou</label>
+                                <input
+                                    type="text"
+                                    value={newName}
+                                    onChange={(e) => setNewName(e.target.value)}
+                                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-green-500 text-white"
+                                    placeholder="Nume utilizator..."
+                                    onKeyDown={(e) => e.key === 'Enter' && handleChangeName()}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={closeNameModal}
+                                className="flex-1 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors"
+                            >
+                                Anulează
+                            </button>
+                            <button
+                                onClick={handleChangeName}
+                                disabled={nameLoading}
+                                className="flex-[2] py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                {nameLoading ? 'Se salvează...' : '✅ Salvează nume'}
                             </button>
                         </div>
                     </div>

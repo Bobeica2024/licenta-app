@@ -7,6 +7,8 @@ interface Window {
             login: (credentials: any) => Promise<{ success: boolean; user?: any; error?: string }>;
             register: (details: any) => Promise<{ success: boolean; userId?: number; error?: string }>;
             getHint: (username: string) => Promise<{ success: boolean; hint?: string; error?: string }>;
+            changeUsername: (data: { userId: number; newUsername: string }) => Promise<{ success: boolean; error?: string }>;
+            changePassword: (data: { userId: number; newPassword: string }) => Promise<{ success: boolean; error?: string }>;
         };
         recorder: {
             getSources: () => Promise<Array<{ id: string; name: string; thumbnail: string }>>;
@@ -45,6 +47,7 @@ interface Window {
             getUsers: (data: { isAdmin: boolean }) => Promise<{ success: boolean; users?: any[]; error?: string }>;
             deleteUser: (data: { targetUserId: number; isAdmin: boolean }) => Promise<{ success: boolean; error?: string }>;
             resetPassword: (data: { targetUserId: number; newPassword: string; isAdmin: boolean }) => Promise<{ success: boolean; error?: string }>;
+            changeUsername: (data: { targetUserId: number; newUsername: string; isAdmin: boolean }) => Promise<{ success: boolean; error?: string }>;
         };
         archive: {
             create: (data: { items: { id: number; type: 'folder' | 'file' }[]; targetFolderId: number | null; archiveName?: string; userId: number; destination?: 'local' | 'db' | 'drive' }) => Promise<{ success: boolean; filePath?: string; destination?: string; fileName?: string; error?: string }>;
