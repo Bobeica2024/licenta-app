@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Settings = () => {
+    const navigate = useNavigate();
     const [driveSession, setDriveSession] = useState<{ isLoggedIn: boolean; user?: any }>({ isLoggedIn: false });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -118,6 +120,36 @@ const Settings = () => {
         }
     };
 
+    const handleDeleteAccount = async () => {
+        if (!currentUser) return;
+        if (currentUser.isAdmin) {
+            alert('Administratorii nu își pot șterge contul.');
+            return;
+        }
+
+        if (!confirm('Ești sigur că dorești să îți ștergi contul? Această acțiune este IREVERSIBILĂ și va șterge TOATE datele asociate (fișiere, foldere, istoric)!')) {
+            return;
+        }
+
+        setAccountLoading(true);
+        try {
+            const result = await window.api.auth.deleteAccount({ userId: currentUser.id });
+            if (result.success) {
+                alert('Contul a fost șters cu succes.');
+                localStorage.removeItem('user');
+                navigate('/');
+                // Optional reload to completely reset UI state
+                setTimeout(() => window.location.reload(), 100);
+            } else {
+                setAccountMessage({ type: 'error', text: result.error || 'Ștergerea contului a eșuat.' });
+                setAccountLoading(false);
+            }
+        } catch (e) {
+            setAccountMessage({ type: 'error', text: 'Eroare neașteptată la ștergerea contului.' });
+            setAccountLoading(false);
+        }
+    };
+
     return (
         <div className="flex-1 p-8 bg-gray-950 text-white overflow-auto flex flex-col gap-6">
             <h2 className="text-3xl font-bold">Setări</h2>
@@ -186,6 +218,23 @@ const Settings = () => {
                             Salvează parola
                         </button>
                     </div>
+
+                    {/* Zonă periculoasă / Ștergere cont */}
+                    {!currentUser?.isAdmin && (
+                        <div className="p-4 bg-red-900/10 border border-red-900/30 rounded-lg space-y-3 mt-2">
+                            <h4 className="text-red-500 font-semibold mb-1">Zonă periculoasă</h4>
+                            <p className="text-sm text-gray-400">
+                                Odată șters, acest cont nu mai poate fi recuperat, iar toate înregistrările, folderele și istoricul tău vor fi șterse definitiv din sistem.
+                            </p>
+                            <button
+                                onClick={handleDeleteAccount}
+                                disabled={accountLoading}
+                                className="w-full py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg disabled:opacity-50 transition-colors mt-2"
+                            >
+                                🗑️ Șterge contul definitiv
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 

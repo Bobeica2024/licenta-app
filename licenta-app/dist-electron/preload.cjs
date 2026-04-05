@@ -27,7 +27,8 @@ try {
       register: (details) => electron.ipcRenderer.invoke("auth:register", details),
       getHint: (username) => electron.ipcRenderer.invoke("auth:get-hint", username),
       changeUsername: (data) => electron.ipcRenderer.invoke("auth:change-username", data),
-      changePassword: (data) => electron.ipcRenderer.invoke("auth:change-password", data)
+      changePassword: (data) => electron.ipcRenderer.invoke("auth:change-password", data),
+      deleteAccount: (data) => electron.ipcRenderer.invoke("auth:delete-account", data)
     },
     recorder: {
       getSources: () => electron.ipcRenderer.invoke("recorder:get-sources"),

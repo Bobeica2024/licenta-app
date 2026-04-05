@@ -75,4 +75,27 @@ export function setupAuthHandlers() {
             return { success: false, error: 'Eroare la schimbarea parolei' };
         }
     });
+
+    ipcMain.handle('auth:delete-account', async (_, { userId }) => {
+        try {
+            // Check if user is admin - don't allow admin to delete themselves this way
+            const target = db.prepare('SELECT id, is_admin FROM users WHERE id = ?').get(userId) as any;
+            if (!target) return { success: false, error: 'User not found' };
+            if (target.is_admin) return { success: false, error: 'Administrator accounts cannot be deleted.' };
+
+            // Delete related data first
+            db.prepare('DELETE FROM fragments WHERE user_id = ?').run(userId);
+            db.prepare('DELETE FROM folders WHERE user_id = ?').run(userId);
+            db.prepare('DELETE FROM history WHERE user_id = ?').run(userId);
+
+            const result = db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+            if (result.changes === 0) {
+                return { success: false, error: 'Could not delete user' };
+            }
+            return { success: true };
+        } catch (error: any) {
+            console.error('Delete account error:', error);
+            return { success: false, error: 'Failed to delete account' };
+        }
+    });
 }

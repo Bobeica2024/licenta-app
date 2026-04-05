@@ -32,6 +32,7 @@ try {
       getHint: (username: string) => ipcRenderer.invoke('auth:get-hint', username),
       changeUsername: (data: any) => ipcRenderer.invoke('auth:change-username', data),
       changePassword: (data: any) => ipcRenderer.invoke('auth:change-password', data),
+      deleteAccount: (data: any) => ipcRenderer.invoke('auth:delete-account', data),
     },
     recorder: {
       getSources: () => ipcRenderer.invoke('recorder:get-sources'),

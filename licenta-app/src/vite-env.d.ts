@@ -9,6 +9,7 @@ interface Window {
             getHint: (username: string) => Promise<{ success: boolean; hint?: string; error?: string }>;
             changeUsername: (data: { userId: number; newUsername: string }) => Promise<{ success: boolean; error?: string }>;
             changePassword: (data: { userId: number; newPassword: string }) => Promise<{ success: boolean; error?: string }>;
+            deleteAccount: (data: { userId: number }) => Promise<{ success: boolean; error?: string }>;
         };
         recorder: {
             getSources: () => Promise<Array<{ id: string; name: string; thumbnail: string }>>;

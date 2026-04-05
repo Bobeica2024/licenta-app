@@ -159,7 +159,7 @@ const Users = () => {
 
     return (
         <div className="flex-1 p-8 bg-gray-950 text-white overflow-auto h-full">
-            <h2 className="text-3xl font-bold mb-6 text-red-500">Gestiune Utilizatori</h2>
+            <h2 className="text-3xl font-bold mb-6 text-red-500">Gestiune utilizatori</h2>
 
             <p className="text-gray-400 mb-6 max-w-2xl">
                 Din acest panou poți vizualiza și elimina utilizatorii din aplicație. Conturile cu drepturi de administrator (ex: admin) nu pot fi șterse.
