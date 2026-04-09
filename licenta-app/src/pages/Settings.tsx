@@ -136,6 +136,12 @@ const Settings = () => {
             const result = await window.api.auth.deleteAccount({ userId: currentUser.id });
             if (result.success) {
                 alert('Contul a fost șters cu succes.');
+
+                // Log out from Google Drive automatically
+                try {
+                   await window.api.drive.logout();
+                } catch(e) {}
+
                 localStorage.removeItem('user');
                 navigate('/');
                 // Optional reload to completely reset UI state

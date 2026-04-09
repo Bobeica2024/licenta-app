@@ -76,7 +76,7 @@ function createWindow() {
     },
   })
 
-  win.webContents.on('preload-error', (event, preloadPath, error) => {
+  win.webContents.on('preload-error', (_event, preloadPath, error) => {
     console.error('!!! PRELOAD ERROR DETECTED !!!');
     console.error('Path:', preloadPath);
     console.error('Error:', error);
@@ -121,8 +121,8 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.disableHardwareAcceleration();
 
 // Register custom protocol 'media' to be privileged
-import { protocol, net } from 'electron';
-import { pathToFileURL } from 'node:url'; // Import pathToFileURL
+import { protocol } from 'electron';
+// import { pathToFileURL } from 'node:url'; // Import pathToFileURL
 
 protocol.registerSchemesAsPrivileged([
   {

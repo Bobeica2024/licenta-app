@@ -41,6 +41,14 @@ const Sidebar = () => {
             sessionStorage.removeItem('recorder_filePath');
             sessionStorage.removeItem('dashboard_croppedFilePath');
 
+            // Log out from Google Drive to protect privacy
+            try {
+                // @ts-ignore
+                await window.api.drive.logout();
+            } catch (e) {
+                console.warn('Could not log out from Google Drive:', e);
+            }
+
             localStorage.removeItem('user');
         } else {
             // Login (from Guest)

@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import GoogleDrivePicker from './GoogleDrivePicker';
 
 interface FileSystemItem {
-    id: number;
+    id: number | string;
     name: string;
     type: 'folder' | 'file';
-    parentId: number | null;
+    parentId: number | string | null;
     createdAt?: string;
     filePath?: string; // For files
     duration?: string; // Optional metadata
@@ -13,7 +13,7 @@ interface FileSystemItem {
 
 interface FileExplorerProps {
     mode: 'view' | 'select'; // 'view' for Library, 'select' for Saving
-    onSelect?: (folderId: number | null) => void; // For saving, returns selected folder ID
+    onSelect?: (folderId: number | string | null) => void; // For saving, returns selected folder ID
     onPlay?: (file: FileSystemItem) => void; // For playing a file
     overrideUserId?: number; // Admin override to browse another user's DB
 }
@@ -28,7 +28,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
         }
         return [];
     }); // Breadcrumbs
-    const [currentFolderId, setCurrentFolderId] = useState<number | null>(() => {
+    const [currentFolderId, setCurrentFolderId] = useState<number | string | null>(() => {
         if (mode === 'view') {
             const saved = sessionStorage.getItem('fileExplorer_currentFolderId');
             if (saved) {
@@ -47,9 +47,12 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
     const [renameValue, setRenameValue] = useState('');
     const [clipboard, setClipboard] = useState<{ action: 'cut' | 'copy', items: FileSystemItem[] } | null>(null);
     const [detailsItem, setDetailsItem] = useState<FileSystemItem | null>(null);
-    const [selectedItems, setSelectedItems] = useState<{ id: number, type: 'folder' | 'file' }[]>([]);
+    const [selectedItems, setSelectedItems] = useState<{ id: number | string, type: 'folder' | 'file' }[]>([]);
     const [isDragSelecting, setIsDragSelecting] = useState(false);
     const dragSelectionRef = useRef(false);
+
+    // Determines if we are navigating inside a .zip file
+    const isInsideArchive = currentPath.some(i => i.type === 'file' && (i as any).fileType === 'archive');
 
     // Email Modal State
     const [showEmailModal, setShowEmailModal] = useState(false);
@@ -59,6 +62,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
     const [showArchiveModal, setShowArchiveModal] = useState(false);
     const [showDrivePickerForArchive, setShowDrivePickerForArchive] = useState(false);
     const [archiveData, setArchiveData] = useState({ name: '', destination: 'db' as 'local' | 'db' | 'drive' });
+    const [archiveError, setArchiveError] = useState<string | null>(null);
 
     // Close context menu on click elsewhere
     useEffect(() => {
@@ -85,7 +89,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
         loadItems(currentFolderId);
     }, [currentFolderId]);
 
-    const loadItems = async (folderId: number | null) => {
+    const loadItems = async (folderId: number | string | null) => {
         setLoading(true);
         try {
             const userStr = localStorage.getItem('user');
@@ -93,6 +97,56 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
             if (!user) return;
             const effectiveUserId = overrideUserId ?? user.id;
 
+            // Daca suntem in interiorul unei arhive
+            const archiveIndex = currentPath.findIndex(i => i.type === 'file' && (i as any).fileType === 'archive');
+            if (archiveIndex !== -1) {
+                const archiveItem = currentPath[archiveIndex];
+                const internalFolders = currentPath.slice(archiveIndex + 1);
+                const prefixPath = internalFolders.length > 0
+                    ? internalFolders.map(f => f.name).join('/') + '/'
+                    : '';
+
+                // @ts-ignore
+                const result = await window.api.archive.list(archiveItem.filePath);
+                if (result.success && result.files) {
+                    setArchiveError(null);
+                    const currentItemsMap = new Map<string, FileSystemItem>();
+
+                    for (const f of result.files) {
+                        if (f.name.startsWith(prefixPath)) {
+                            const relativeStr = f.name.substring(prefixPath.length);
+                            if (!relativeStr) continue;
+
+                            const parts = relativeStr.split('/');
+                            const name = parts[0];
+                            if (!name) continue;
+
+                            // isDir if the entry itself is a directory, OR if the entry is nested deeper
+                            const isDir = f.isDirectory || parts.length > 1;
+
+                            if (!currentItemsMap.has(name)) {
+                                currentItemsMap.set(name, {
+                                    id: `archive-${archiveItem.id}-${prefixPath}${name}`,
+                                    name: name,
+                                    type: isDir ? 'folder' : 'file',
+                                    parentId: currentFolderId,
+                                    fileType: isDir ? undefined : 'archive_item',
+                                    archivePath: archiveItem.filePath,
+                                    internalPath: isDir ? undefined : `${prefixPath}${name}`
+                                } as any);
+                            }
+                        }
+                    }
+                    setItems(Array.from(currentItemsMap.values()));
+                } else {
+                    setArchiveError(result.error || 'Arhiva nu a putut fi citită.');
+                    setItems([]);
+                }
+                return;
+            }
+
+            // Normal DB mode
+            setArchiveError(null);
             // @ts-ignore
             const result = await window.api.library.getContents({ folderId, userId: effectiveUserId });
             setItems(result);
@@ -103,9 +157,26 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
         }
     };
 
-    const handleNavigate = (folder: FileSystemItem) => {
-        setCurrentPath([...currentPath, folder]);
-        setCurrentFolderId(folder.id);
+    const handleNavigate = async (folderOrArchive: FileSystemItem) => {
+        setCurrentPath([...currentPath, folderOrArchive]);
+        setCurrentFolderId(folderOrArchive.id);
+
+        // Add to history
+        try {
+            const userStr = localStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+            if (user && !overrideUserId) {
+                const actionType = (folderOrArchive.type === 'file' && (folderOrArchive as any).fileType === 'archive')
+                    ? 'ACCESS_ARCHIVE'
+                    : 'ACCESS_FOLDER';
+                // @ts-ignore
+                await window.api.history.add({
+                    userId: user.id,
+                    actionType: actionType,
+                    itemName: folderOrArchive.name
+                });
+            }
+        } catch (e) { }
     };
 
     const handleNavigateUp = () => {
@@ -169,6 +240,54 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
         }
     };
 
+    const handleExtractAndPlay = async (file: any) => {
+        setLoading(true);
+        try {
+            // @ts-ignore
+            const result = await window.api.archive.extractItem(file.archivePath, file.internalPath);
+            if (result.success && result.filePath) {
+                if (onPlay) {
+                    onPlay({ ...file, filePath: result.filePath });
+                }
+            } else {
+                alert('Eroare la extragerea fișierului pentru redare: ' + (result.error || 'Eroare necunoscută'));
+            }
+        } catch (error: any) {
+            alert('A apărut o eroare: ' + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Handles double-click on a .zip file that's INSIDE another archive.
+    // Extracts the nested zip to temp and navigates into it.
+    const handleEnterNestedArchive = async (file: any) => {
+        setLoading(true);
+        try {
+            // @ts-ignore
+            const result = await window.api.archive.extractItem(file.archivePath, file.internalPath);
+            if (result.success && result.filePath) {
+                // Create a virtual file-system item pointing to the extracted nested zip
+                const nestedItem: FileSystemItem = {
+                    id: `nested-${Date.now()}-${file.name}`,
+                    name: file.name,
+                    type: 'file',
+                    parentId: currentFolderId,
+                    filePath: result.filePath,
+                    fileType: 'archive'
+                } as any;
+                // Navigate into it
+                handleNavigate(nestedItem);
+            } else {
+                alert('Nu s-a putut deschide arhiva imbricată: ' + (result.error || 'Eroare necunoscută'));
+            }
+        } catch (error: any) {
+            alert('A apărut o eroare: ' + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
 
 
     const handleDragEnter = (e: React.MouseEvent, item: FileSystemItem) => {
@@ -200,7 +319,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
 
         let x = e.pageX;
         let y = e.pageY;
-        
+
         // Previne ieșirea meniului în afara ecranului (jos sau în dreapta)
         const menuWidth = 200; // Lățimea aproximativă a meniului
         const menuHeight = 280; // Înălțimea aproximativă când sunt multe opțiuni
@@ -212,7 +331,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
     };
 
     const startRenaming = (item: FileSystemItem) => {
-        setEditingItem({ id: item.id, type: item.type });
+        setEditingItem({ id: item.id as number, type: item.type });
         setRenameValue(item.name);
         setContextMenu(null);
     };
@@ -357,9 +476,9 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
 
                 // @ts-ignore
                 await window.api.library.moveItem({
-                    id: item.id,
+                    id: item.id as number,
                     type: item.type,
-                    targetFolderId: targetFolder.id,
+                    targetFolderId: targetFolder.id as number,
                     userId: effectiveUserId
                 });
 
@@ -409,9 +528,9 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                 if (clipboard.action === 'cut') {
                     // @ts-ignore
                     await window.api.library.moveItem({
-                        id: item.id,
+                        id: item.id as number,
                         type: item.type,
-                        targetFolderId: currentFolderId,
+                        targetFolderId: currentFolderId as number | null,
                         userId: effectiveUserId
                     });
 
@@ -426,9 +545,9 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                 } else {
                     // @ts-ignore
                     await window.api.library.copyItem({
-                        id: item.id,
+                        id: item.id as number,
                         type: item.type,
-                        targetFolderId: currentFolderId,
+                        targetFolderId: currentFolderId as number | null,
                         userId: effectiveUserId
                     });
                     // Add to history
@@ -489,7 +608,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
 
             const result = await window.api.archive.create({
                 items: selectedItems as any,
-                targetFolderId: currentFolderId,
+                targetFolderId: currentFolderId as number | null,
                 archiveName: archiveData.name,
                 userId: effectiveUserId,
                 destination: archiveData.destination
@@ -707,8 +826,16 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
             >
                 {loading ? (
                     <div className="text-center text-gray-500 mt-10">Se încarcă...</div>
+                ) : archiveError ? (
+                    <div className="text-center mt-10">
+                        <div className="text-4xl mb-3">⚠️</div>
+                        <div className="text-red-400 font-medium">Nu s-a putut citi arhiva</div>
+                        <div className="text-gray-500 text-sm mt-1">{archiveError}</div>
+                    </div>
                 ) : items.length === 0 ? (
-                    <div className="text-center text-gray-600 mt-10">Folder gol</div>
+                    <div className="text-center text-gray-600 mt-10">
+                        {isInsideArchive ? 'Arhivă goală' : 'Folder gol'}
+                    </div>
                 ) : (
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                         {/* Folders */}
@@ -764,13 +891,28 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                                 onDragStart={(e) => handleDragStart(e, file)}
                                 onMouseEnter={(e) => handleDragEnter(e, file)}
                                 onClick={(e) => { e.stopPropagation(); handleItemClick(e, file); setContextMenu(null); }}
-                                onDoubleClick={() => onPlay && onPlay(file)}
+                                onDoubleClick={() => {
+                                    const isArchiveItem = (file as any).fileType === 'archive_item' || (file as any).archivePath;
+                                    const isNestedZip = isArchiveItem && file.name.toLowerCase().endsWith('.zip');
+                                    if ((file as any).fileType === 'archive') {
+                                        // DB-stored archive: navigate into it directly
+                                        handleNavigate(file);
+                                    } else if (isNestedZip) {
+                                        // .zip inside another archive: extract then navigate
+                                        handleEnterNestedArchive(file);
+                                    } else if (isArchiveItem) {
+                                        // Regular file inside archive: extract then play
+                                        handleExtractAndPlay(file);
+                                    } else if (onPlay) {
+                                        onPlay(file);
+                                    }
+                                }}
                                 onContextMenu={(e) => handleContextMenu(e, file)}
                                 className={`fe-item group relative flex flex-col items-center p-4 rounded-lg cursor-pointer transition-colors border ${selectedItems.some(i => i.id === file.id && i.type === 'file') ? 'bg-blue-900/40 border-blue-500' : 'border-transparent hover:bg-gray-800 hover:border-gray-700'} ${clipboard?.items.some(i => i.id === file.id && i.type === 'file') && clipboard?.action === 'cut' ? 'opacity-50' : ''}`}
                             >
 
                                 <div className="text-5xl mb-2 text-blue-400">
-                                    {(file as any).fileType === 'archive' ? '📦' : '🎥'}
+                                    {(file as any).fileType === 'archive' || ((file as any).fileType === 'archive_item' && file.name.toLowerCase().endsWith('.zip')) ? '📦' : '🎥'}
                                 </div>
 
                                 {editingItem?.id === file.id && editingItem?.type === 'file' ? (
@@ -810,7 +952,9 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                     className="fixed bg-gray-800 border border-gray-700 rounded shadow-xl py-1 z-50 min-w-[150px]"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
                 >
-                    {contextMenu.item ? (
+                    {isInsideArchive ? (
+                        <div className="px-4 py-2 text-sm text-gray-500 cursor-default">Mod Read-Only (Arhivă)</div>
+                    ) : contextMenu.item ? (
                         <>
                             <button
                                 className="w-full text-left px-4 py-2 hover:bg-gray-700 text-sm"
@@ -941,7 +1085,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                     onKeyDown={(e) => e.stopPropagation()}
                 >
                     <div className="bg-gray-800 border border-gray-700 rounded-xl p-6 shadow-2xl w-[400px]">
-                        <h2 className="text-xl font-bold mb-4 text-white">Trimiteți prin Email</h2>
+                        <h2 className="text-xl font-bold mb-4 text-white">Trimiteți prin e-mail</h2>
                         <div className="mb-4 text-sm text-gray-400">
                             Fișier selectat: <span className="text-white font-medium">{items.find(i => i.id === selectedItems[0]?.id)?.name}</span>
                         </div>
@@ -1005,7 +1149,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                             onChange={(e) => setArchiveData({ ...archiveData, name: e.target.value })}
                             autoFocus
                         />
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Locație Salvare</label>
+                        <label className="block text-sm font-medium text-gray-400 mb-1">Locație salvare</label>
                         <select
                             className="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 mb-6 text-white focus:outline-none focus:border-blue-500"
                             value={archiveData.destination}
@@ -1041,7 +1185,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                     <div className="bg-gray-900 w-[800px] h-[600px] rounded-xl flex flex-col border border-gray-700 shadow-2xl">
                         <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-800 rounded-t-xl">
                             <h3 className="font-bold text-xl text-white flex items-center gap-2">
-                                <span className="text-blue-500">☁️</span> Salvare Arhivă în Google Drive
+                                <span className="text-blue-500">☁️</span> Salvare arhivă în Google Drive
                             </h3>
                             <button
                                 onClick={() => setShowDrivePickerForArchive(false)}

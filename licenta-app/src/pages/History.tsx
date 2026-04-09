@@ -108,7 +108,9 @@ const History = () => {
         'RENAME': 'A redenumit',
         'MOVE': 'A mutat',
         'COPY': 'A copiat',
-        'ARCHIVE': 'A arhivat'
+        'ARCHIVE': 'A arhivat',
+        'ACCESS_FOLDER': 'A deschis folderul',
+        'ACCESS_ARCHIVE': 'A accesat arhiva'
     };
 
     if (!user) {

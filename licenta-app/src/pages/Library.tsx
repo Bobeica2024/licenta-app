@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import FileExplorer from '../components/FileExplorer';
 
 const Library = () => {
-    const [playingFile, setPlayingFile] = useState<{ name: string, filePath: string } | null>(null);
+    const [playingFile, setPlayingFile] = useState<{ name: string, filePath: string, fileType?: string } | null>(null);
 
     const userStr = localStorage.getItem('user');
     const currentUser = userStr ? JSON.parse(userStr) : null;

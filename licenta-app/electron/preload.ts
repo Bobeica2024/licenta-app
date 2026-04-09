@@ -75,6 +75,8 @@ try {
     },
     archive: {
       create: (data: any) => ipcRenderer.invoke('archive:create', data),
+      list: (filePath: string) => ipcRenderer.invoke('archive:list', filePath),
+      extractItem: (archivePath: string, entryName: string) => ipcRenderer.invoke('archive:extract-item', archivePath, entryName)
     }
   })
 

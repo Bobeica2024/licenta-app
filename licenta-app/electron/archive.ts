@@ -47,23 +47,26 @@ export function setupArchiveHandlers() {
                     const file = db.prepare('SELECT title, file_path FROM fragments WHERE id = ? AND user_id = ?').get(item.id, userId) as any;
                     if (file && file.file_path && fs.existsSync(file.file_path)) {
                         const ext = path.extname(file.file_path) || '.webm';
-                        const safeTitle = file.title.replace(/[^\w\s-]/gi, '');
-                        // Add file to root of zip
-                        zip.addLocalFile(file.file_path, '', safeTitle + ext);
+                        const safeTitle = file.title.replace(/[^\w\s\-\.]/gi, '').replace(/\.zip$/i, '');
+                        const entryName = safeTitle + ext;
+                        // Use addFile with Buffer to correctly handle any file type (incl. zip-in-zip)
+                        const content = fs.readFileSync(file.file_path);
+                        zip.addFile(entryName, content);
                         addedFilesCount++;
                     }
                 } else if (item.type === 'folder') {
                     const folder = db.prepare('SELECT name FROM folders WHERE id = ? AND user_id = ?').get(item.id, userId) as any;
                     if (folder) {
-                        const folderName = folder.name.replace(/[^\w\s-]/gi, '');
+                        const folderName = folder.name.replace(/[^\w\s\-]/gi, '');
                         const allFiles = getFolderFilesRecursively(item.id, userId, folderName);
 
                         for (const f of allFiles) {
                             if (fs.existsSync(f.actualPath)) {
-                                // Add file and specify its internal zip path (folder structure)
-                                const dirName = path.dirname(f.dbPath);
-                                // addLocalFile(localPath, zipPath, zipName)
-                                zip.addLocalFile(f.actualPath, dirName === '.' ? '' : dirName);
+                                // Use addFile with Buffer for reliable binary handling
+                                const content = fs.readFileSync(f.actualPath);
+                                // f.dbPath contains folder/title.ext structure
+                                const entryName = f.dbPath.replace(/\\/g, '/');
+                                zip.addFile(entryName, content);
                                 addedFilesCount++;
                             }
                         }
@@ -122,6 +125,54 @@ export function setupArchiveHandlers() {
 
         } catch (error: any) {
             console.error('Archiving error:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('archive:list', async (_, filePath: string) => {
+        try {
+            if (!fs.existsSync(filePath)) {
+                return { success: false, error: 'Fișierul arhivă nu există.' };
+            }
+
+            const zip = new AdmZip(filePath);
+            const zipEntries = zip.getEntries();
+            const files = zipEntries.map(entry => ({
+                name: entry.entryName,
+                isDirectory: entry.isDirectory,
+                size: entry.header.size
+            }));
+
+            return { success: true, files };
+        } catch (error: any) {
+            console.error('Error listing archive:', error);
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('archive:extract-item', async (_, archivePath: string, entryName: string) => {
+        try {
+            if (!fs.existsSync(archivePath)) {
+                return { success: false, error: 'Fișierul arhivă nu există.' };
+            }
+
+            const zip = new AdmZip(archivePath);
+            const tempDir = path.join(app.getPath('temp'), 'fragman-extracted', Date.now().toString());
+            fs.mkdirSync(tempDir, { recursive: true });
+            
+            // Extragere element specific în directorul temporar
+            zip.extractEntryTo(entryName, tempDir, false, true); // maintainEntryPath = false
+            
+            const baseName = path.basename(entryName);
+            const absoluteTempPath = path.join(tempDir, baseName);
+            
+            if (fs.existsSync(absoluteTempPath)) {
+                return { success: true, filePath: absoluteTempPath };
+            } else {
+                return { success: false, error: 'Nu s-a putut extrage fișierul temporar pentru redare.' };
+            }
+        } catch (error: any) {
+            console.error('Extraction error:', error);
             return { success: false, error: error.message };
         }
     });
