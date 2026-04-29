@@ -1,0 +1,338 @@
+===========================================================
+  DIAGRAMA DE CLASE UML - Aplicatia FragMan
+===========================================================
+
+
+┌─────────────────────────────────────────┐
+│               Utilizator                │
+├─────────────────────────────────────────┤
+│ - id: int                               │
+│ - username: String                      │
+│ - passwordHash: String                  │
+│ - hint: String                          │
+│ - esteAdmin: Boolean                    │
+├─────────────────────────────────────────┤
+│ + autentificare(): Boolean              │
+│ + inregistrare(): Boolean               │
+│ + obtineIndiciu(): String               │
+│ + schimbaUsername(): void               │
+│ + schimbaParola(): void                 │
+│ + stergeContul(): void                  │
+└─────────────────────────────────────────┘
+                    △
+                    │  Generalizare (mostenire)
+                    │
+┌─────────────────────────────────────────┐
+│             Administrator               │
+├─────────────────────────────────────────┤
+│ - esteAdmin: Boolean = true             │
+├─────────────────────────────────────────┤
+│ + obtineToateLogurile(): List           │
+│ + obtineTotiUtilizatorii(): List        │
+│ + stergeUtilizator(): void              │
+│ + reseteazaParola(): void               │
+│ + schimbaUsernameUtilizator(): void     │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│              Fragment                   │
+├─────────────────────────────────────────┤
+│ - id: int                               │
+│ - userId: int                           │
+│ - folderId: int                         │
+│ - titlu: String                         │
+│ - tip: String  {video, archive}         │
+│ - urlSursa: String                      │
+│ - caleFisier: String                    │
+│ - driveId: String                       │
+│ - creatLa: DateTime                     │
+├─────────────────────────────────────────┤
+│ + getDetalii(): FragmentInfo            │
+│ + actualizeazaTitlu(): void             │
+│ + actualizeazaFolder(): void            │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│               Folder                    │
+├─────────────────────────────────────────┤
+│ - id: int                               │
+│ - nume: String                          │
+│ - parentId: int                         │
+│ - userId: int                           │
+│ - creatLa: DateTime                     │
+├─────────────────────────────────────────┤
+│ + getContinut(): List                   │
+│ + creeazaSubfolder(): void              │
+│ + stergeRecursiv(): void                │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│          InregistrareIstoric            │
+├─────────────────────────────────────────┤
+│ - id: int                               │
+│ - userId: int                           │
+│ - tipActiune: String                    │
+│ - numeItem: String                      │
+│ - creatLa: DateTime                     │
+├─────────────────────────────────────────┤
+│ + adaugaActiune(): void                 │
+│ + obtineIstoric(): List                 │
+│ + stergeInregistrare(): void            │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│       ManagerBazaDate (DBHelper)        │
+├─────────────────────────────────────────┤
+│ - dbPath: String                        │
+│ - conexiune: Database                   │
+├─────────────────────────────────────────┤
+│ + initializeazaSchema(): void           │
+│ + ruleazaMigrari(): void                │
+│ + prepare(): Statement                  │
+│ + exec(): void                          │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│     ManagerAutentificare (AuthHandler)  │
+├─────────────────────────────────────────┤
+│ - SALT_ROUNDS: int = 10                 │
+├─────────────────────────────────────────┤
+│ + login(): Object                       │
+│ + register(): Object                    │
+│ + getHint(): String                     │
+│ + changeUsername(): void                │
+│ + changePassword(): void                │
+│ + deleteAccount(): void                 │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│   ManagerInregistrare (RecorderHandler) │
+├─────────────────────────────────────────┤
+│ - writeStreams: Map                      │
+│ - ffmpegPath: String                    │
+├─────────────────────────────────────────┤
+│ + getSources(): List                    │
+│ + getTempPath(): String                 │
+│ + startSave(): void                     │
+│ + writeChunk(): void                    │
+│ + stopSave(): void                      │
+│ + cropVideo(): Object                   │
+│ + deleteTempFile(): void                │
+│ + saveFile(): Object                    │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│   ManagerBiblioteca (LibraryHandler)    │
+├─────────────────────────────────────────┤
+│                                         │
+├─────────────────────────────────────────┤
+│ + getContents(): List                   │
+│ + createFolder(): Object                │
+│ + deleteItem(): void                    │
+│ + renameItem(): void                    │
+│ + moveItem(): void                      │
+│ + copyItem(): void                      │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│    ManagerIstoric (HistoryHandler)      │
+├─────────────────────────────────────────┤
+│                                         │
+├─────────────────────────────────────────┤
+│ + addHistory(): void                    │
+│ + getHistory(): List                    │
+│ + deleteHistory(): void                 │
+│ + getFragmentByName(): Object           │
+│ + getUsers(): List                      │
+│ + deleteUser(): void                    │
+│ + resetPassword(): void                 │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│    ManagerArhiva (ArchiveHandler)       │
+├─────────────────────────────────────────┤
+│                                         │
+├─────────────────────────────────────────┤
+│ + createArchive(): Object               │
+│ + listArchive(): List                   │
+│ + extractItem(): Object                 │
+│ - getFilesRecursively(): List           │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│      ManagerDrive (DriveHandler)        │
+├─────────────────────────────────────────┤
+│ - CLIENT_ID: String                     │
+│ - CLIENT_SECRET: String                 │
+│ - REDIRECT_URI: String                  │
+│ - oAuth2Client: OAuth2Client            │
+│ - currentTokens: Object                 │
+├─────────────────────────────────────────┤
+│ + authenticate(): Object                │
+│ + logout(): void                        │
+│ + getSession(): Object                  │
+│ + uploadFile(): Object                  │
+│ + listFolders(): List                   │
+│ + sendEmail(): void                     │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│       PontePrelud (PreloadBridge)       │
+├─────────────────────────────────────────┤
+│                                         │
+├─────────────────────────────────────────┤
+│ + exposeAuthAPI(): void                 │
+│ + exposeRecorderAPI(): void             │
+│ + exposeDriveAPI(): void                │
+│ + exposeLibraryAPI(): void              │
+│ + exposeHistoryAPI(): void              │
+│ + exposeAdminAPI(): void                │
+│ + exposeArchiveAPI(): void              │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│      AppPrincipal (ElectronMain)        │
+├─────────────────────────────────────────┤
+│ - win: BrowserWindow                    │
+│ - VITE_DEV_SERVER_URL: String           │
+├─────────────────────────────────────────┤
+│ + createWindow(): void                  │
+│ + setupMediaProtocol(): void            │
+│ + configureCSP(): void                  │
+│ + initializeazaHandlers(): void         │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│        HookInregistrare (useRecorder)   │
+├─────────────────────────────────────────┤
+│ - isRecording: Boolean                  │
+│ - isPaused: Boolean                     │
+│ - recordingTime: int                    │
+│ - filePath: String                      │
+│ - mediaRecorder: MediaRecorder          │
+├─────────────────────────────────────────┤
+│ + startRecording(): void                │
+│ + stopRecording(): void                 │
+│ + pauseRecording(): void                │
+│ + resumeRecording(): void               │
+│ + discardRecording(): void              │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│           ServiciuGoogleDrive           │
+├─────────────────────────────────────────┤
+│                                         │
+├─────────────────────────────────────────┤
+│ + uploadFile(): Object                  │
+│ + listFolders(): List                   │
+│ + getUserInfo(): Object                 │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│              ServiciuGmail              │
+├─────────────────────────────────────────┤
+│                                         │
+├─────────────────────────────────────────┤
+│ + sendMessage(): void                   │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│             ServiciuFFmpeg              │
+├─────────────────────────────────────────┤
+│                                         │
+├─────────────────────────────────────────┤
+│ + cropVideo(): void                     │
+└─────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────┐
+│             ServiciuAdmZip              │
+├─────────────────────────────────────────┤
+│                                         │
+├─────────────────────────────────────────┤
+│ + addFile(): void                       │
+│ + writeZip(): void                      │
+│ + getEntries(): List                    │
+│ + extractEntry(): void                  │
+└─────────────────────────────────────────┘
+
+
+===========================================================
+  RELATII (pentru desenat in Visual Paradigm)
+===========================================================
+
+  TIP RELATIE          DE LA                   CATRE                 MULTIPLICITATE   ETICHETA
+  ───────────────────────────────────────────────────────────────────────────────────────────────
+  Generalizare         Administrator           Utilizator            -                mosteneste
+  Asociere             Utilizator              InregistrareIstoric   1 --> 0..*        genereaza
+  Asociere             Utilizator              Fragment              1 --> 0..*        detine
+  Asociere             Utilizator              Folder                1 --> 0..*        organizeaza
+  Agregare (romb gol)  Folder                  Fragment              1 ◇--> 0..*      contine
+  Agregare (romb gol)  Folder                  Folder                1 ◇--> 0..*      contine subfoldere
+  Agregare (romb plin) ManagerBazaDate         Utilizator            1 ◆--> 0..*      stocheaza
+  Agregare (romb plin) ManagerBazaDate         Fragment              1 ◆--> 0..*      stocheaza
+  Agregare (romb plin) ManagerBazaDate         Folder                1 ◆--> 0..*      stocheaza
+  Agregare (romb plin) ManagerBazaDate         InregistrareIstoric   1 ◆--> 0..*      stocheaza
+  Dependenta           AppPrincipal            ManagerAutentificare  -                initializeaza
+  Dependenta           AppPrincipal            ManagerInregistrare   -                initializeaza
+  Dependenta           AppPrincipal            ManagerBiblioteca     -                initializeaza
+  Dependenta           AppPrincipal            ManagerIstoric        -                initializeaza
+  Dependenta           AppPrincipal            ManagerArhiva         -                initializeaza
+  Dependenta           AppPrincipal            ManagerDrive          -                initializeaza
+  Dependenta           AppPrincipal            ManagerBazaDate       -                initializeaza
+  Asociere             ManagerAutentificare    ManagerBazaDate       * --> 1           foloseste
+  Asociere             ManagerBiblioteca       ManagerBazaDate       * --> 1           foloseste
+  Asociere             ManagerIstoric          ManagerBazaDate       * --> 1           foloseste
+  Asociere             ManagerArhiva           ManagerBazaDate       * --> 1           foloseste
+  Asociere             ManagerInregistrare     ManagerBazaDate       * --> 1           foloseste
+  Asociere             PontePrelud             ManagerAutentificare  1 --> 1           expune via IPC
+  Asociere             PontePrelud             ManagerInregistrare   1 --> 1           expune via IPC
+  Asociere             PontePrelud             ManagerBiblioteca     1 --> 1           expune via IPC
+  Asociere             PontePrelud             ManagerIstoric        1 --> 1           expune via IPC
+  Asociere             PontePrelud             ManagerArhiva         1 --> 1           expune via IPC
+  Asociere             PontePrelud             ManagerDrive          1 --> 1           expune via IPC
+  Asociere             HookInregistrare        PontePrelud           * --> 1           apeleaza
+  Asociere             ManagerInregistrare     ServiciuFFmpeg        1 --> 1           decupeaza video
+  Asociere             ManagerDrive            ServiciuGoogleDrive   1 --> 1           incarca fisiere
+  Asociere             ManagerDrive            ServiciuGmail         1 --> 1           trimite email
+  Asociere             ManagerArhiva           ServiciuAdmZip        1 --> 1           creeaza ZIP
+
+
+===========================================================
+  PACHETE (grupuri in Visual Paradigm)
+===========================================================
+
+  [Pachet: Modele de Date]
+    Utilizator, Administrator, Fragment, Folder, InregistrareIstoric
+
+  [Pachet: Backend - Electron Main Process]
+    AppPrincipal, ManagerBazaDate, ManagerAutentificare,
+    ManagerInregistrare, ManagerBiblioteca, ManagerIstoric,
+    ManagerArhiva, ManagerDrive, PontePrelud
+
+  [Pachet: Frontend - React]
+    HookInregistrare
+    (Paginile si componentele React nu se includ in diagrama de clase
+     UML backend, ele sunt reprezentate in diagrame separate de UI)
+
+  [Pachet: Servicii Externe]
+    ServiciuGoogleDrive, ServiciuGmail,
+    ServiciuFFmpeg, ServiciuAdmZip
+
+===========================================================

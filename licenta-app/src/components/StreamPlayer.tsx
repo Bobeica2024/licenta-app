@@ -21,15 +21,21 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
     const [playing, setPlaying] = useState(true);
     // Use any to bypass strict type checking for the library ref if needed
     const playerRef = useRef<any>(null);
-    // const [showRawYoutube, setShowRawYoutube] = useState(false); // LIFTED
-
+    const rawVideoRef = useRef<HTMLVideoElement>(null);
     const [error, setError] = useState<string | null>(null);
 
     useImperativeHandle(ref, () => ({
-        play: () => setPlaying(true),
-        pause: () => setPlaying(false),
-        // toggleRawYoutube: ... removed
+        play: () => {
+            setPlaying(true);
+            rawVideoRef.current?.play().catch(e => console.error(e));
+        },
+        pause: () => {
+            setPlaying(false);
+            rawVideoRef.current?.pause();
+        },
     }));
+
+    const isLocalVideo = url.startsWith('media://') || url.match(/\.(mp4|webm|mkv|ogg|mov)$/i);
 
     return (
         <div className="w-full h-full bg-black rounded-xl overflow-hidden relative">
@@ -54,16 +60,26 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
                         className="w-full h-full"
                     ></iframe>
                 </div>
-            ) : url.endsWith('.mp4') ? (
-                <div style={{ padding: 20, background: 'red' }}>
-                    <p style={{ color: 'white' }}>Test etichetă video brută</p>
+            ) : isLocalVideo ? (
+                <div className="w-full h-full bg-black flex items-center justify-center">
                     <video
+                        ref={rawVideoRef}
                         src={url}
                         controls
                         autoPlay
-                        style={{ width: '100%', height: '300px', background: 'black' }}
-                        onPlay={() => console.log("RAW VIDEO PLAYING")}
-                        onError={(e) => console.error("RAW VIDEO ERROR", e)}
+                        className="w-full h-full object-contain"
+                        onPlay={() => {
+                            setPlaying(true);
+                            onPlay?.();
+                        }}
+                        onPause={() => {
+                            setPlaying(false);
+                            onPause?.();
+                        }}
+                        onError={(e) => {
+                            console.error("RAW VIDEO ERROR", e);
+                            setError("Fișierul video local nu a putut fi redat.");
+                        }}
                     />
                 </div>
             ) : (

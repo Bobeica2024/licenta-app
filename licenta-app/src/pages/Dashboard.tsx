@@ -8,6 +8,7 @@ const Dashboard = () => {
     const [url, setUrl] = useState('');
     const [inputUrl, setInputUrl] = useState('');
     const [saveDestination, setSaveDestination] = useState('local'); // 'local' | 'sqlite' | 'drive'
+    const [saveFormat, setSaveFormat] = useState('mp4'); // 'mp4' | 'webm'
     const [isUploading, setIsUploading] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [showDrivePicker, setShowDrivePicker] = useState(false);
@@ -176,7 +177,8 @@ const Dashboard = () => {
                     userId: userObj?.id,
                     title: finalTitle,
                     sourceUrl: url,
-                    folderId: folderId as (number | null)
+                    folderId: folderId as (number | null),
+                    format: saveFormat
                 });
             }
 
@@ -247,6 +249,30 @@ const Dashboard = () => {
             setShowRawYoutube(false);
             return;
         }
+
+        let formattedUrl = newUrl.trim();
+        
+        // Handle file:/// URLs copied from browser
+        if (formattedUrl.startsWith('file:///')) {
+            formattedUrl = formattedUrl.substring(8);
+            // On Windows, it's file:///C:/path -> C:/path
+            // Decode URI components in case the user copied %20
+            try {
+                formattedUrl = decodeURIComponent(formattedUrl);
+            } catch (e) {
+                // Ignore if not encoded
+            }
+        } else {
+            // Remove any surrounding quotes from drag & drop
+            formattedUrl = formattedUrl.replace(/^["']|["']$/g, '');
+        }
+
+        // Detect local paths (e.g. C:\path or /path)
+        if (/^[a-zA-Z]:[\\/]/.test(formattedUrl) || formattedUrl.startsWith('/')) {
+            // Convert to media protocol for Electron secure loading
+            formattedUrl = `media:///${formattedUrl.replace(/\\/g, '/')}`;
+        }
+
         if (currentFilePath) {
             if (confirm("Se pare că ai o înregistrare recentă pe ecran. Dorești să o ștergi pentru a putea adăuga un videoclip nou?")) {
                 await discardRecording();
@@ -255,10 +281,10 @@ const Dashboard = () => {
                     await window.api.recorder.deleteTempFile(croppedFilePath);
                     setCroppedFilePath(null);
                 }
-                setUrl(newUrl);
+                setUrl(formattedUrl);
             }
         } else {
-            setUrl(newUrl);
+            setUrl(formattedUrl);
         }
     };
 
@@ -294,36 +320,51 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
                 {/* Stream Area */}
                 <div className="lg:col-span-2 flex flex-col gap-4">
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-3">
                         <input
                             type="text"
-                            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
-                            placeholder="Introdu URL Youtube..."
+                            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
+                            placeholder="Introdu URL Youtube sau calea fișierului local (ex: C:\Video.mp4)..."
                             value={inputUrl}
                             onChange={(e) => setInputUrl(e.target.value)}
                             disabled={isRecording}
                         />
-                        <button
-                            onClick={handleConnect}
-                            className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-medium transition-colors"
-                            disabled={isRecording}
-                        >
-                            Conectează-te
-                        </button>
-                        <button
-                            onClick={() => {
-                                // Dacă încearcă să încarce, dar căsuța e goală, scoatem video-ul vechi
-                                if (!showRawYoutube && !inputUrl.trim()) {
-                                    setUrl('');
-                                    return;
-                                }
-                                setShowRawYoutube(prev => !prev);
-                            }}
-                            className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-medium transition-colors"
-                            disabled={isRecording}
-                        >
-                            {showRawYoutube ? 'Golește player-ul' : 'Încarcă video-ul'}
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleConnect}
+                                className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg font-medium transition-colors"
+                                disabled={isRecording}
+                            >
+                                Conectează-te
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    const res = await window.api.recorder.selectVideo();
+                                    if (res.success && res.filePath) {
+                                        setInputUrl(res.filePath);
+                                        loadNewUrl(res.filePath);
+                                    }
+                                }}
+                                className="bg-gray-700 hover:bg-gray-600 px-6 py-2 rounded-lg font-medium transition-colors whitespace-nowrap"
+                                disabled={isRecording}
+                            >
+                                Încarcă din PC
+                            </button>
+                            <button
+                                onClick={() => {
+                                    // Dacă încearcă să încarce, dar căsuța e goală, scoatem video-ul vechi
+                                    if (!showRawYoutube && !inputUrl.trim()) {
+                                        setUrl('');
+                                        return;
+                                    }
+                                    setShowRawYoutube(prev => !prev);
+                                }}
+                                className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg font-medium transition-colors"
+                                disabled={isRecording}
+                            >
+                                {showRawYoutube ? 'Golește player-ul' : 'Afișează YouTube nativ'}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="bg-black/20 rounded-xl border border-gray-800 flex-1 flex items-center justify-center overflow-hidden relative">
@@ -441,6 +482,19 @@ const Dashboard = () => {
                                         <option value="local">Computer Local</option>
                                         {user && <option value="sqlite">Bază de date (Local)</option>}
                                         <option value="drive">Google Drive</option>
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm text-gray-400">Format video</label>
+                                    <select
+                                        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none"
+                                        value={saveFormat}
+                                        onChange={(e) => setSaveFormat(e.target.value)}
+                                        disabled={isUploading || saveDestination === 'drive'}
+                                    >
+                                        <option value="mp4">MP4 (Compatibilitate maximă)</option>
+                                        <option value="webm">WebM (Format brut browser)</option>
                                     </select>
                                 </div>
                             </div>

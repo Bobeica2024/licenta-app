@@ -1,0 +1,12 @@
+1. Principiul Securității și al Permisiunilor Minime (Principle of Least Privilege)
+În arhitectura de securitate modernă (OAuth 2.0 cu care funcționează Google API), o aplicație terță trebuie să ceară strict permisiunile de care are absolută nevoie (scope-uri). Pentru a salva un videoclip, aplicația ta nu are nevoie și nu ar trebui să aibă dreptul să citească documentele private ale utilizatorului (poze, facturi, documente word personale aflate în Drive-ul lui). Dacă exploratorul ar încărca toate fișierele, ar însemna că aplicația extrage și citește metadatele unor elemente care nu îi aparțin și cu care nu interacționează, încălcând dreptul la intimitate al utilizatorului.
+
+2. Eficiența lățimii de bandă și a memoriei (API Optimization & Payload Size)
+Dacă un utilizator are 10.000 de poze și fișiere într-un folder din Google Drive, o interpelare către API (GET /drive/v3/files) le-ar descărca pe toate în memoria aplicației (JSON payload) doar pentru ca tu să alegi... un folder. Filtrând direct pe serverele Google locațiile folosind query-ul specific pentru directoare (mimeType = 'application/vnd.google-apps.folder'), aplicația ta primește înapoi doar 3-4 rezultate (folderele). Asta înseamnă un trafic de date aproape zero, timp de răspuns de sub o secundă și consum minim de memorie (RAM) în Electron. Aceasta este o dovadă clară de cod optimizat.
+
+3. Logica de User Experience (UX Focus)
+Acțiunea curentă a utilizatorului pe acel ecran este de a selecta o DESTINAȚIE de salvare. Un fișier (fie el .mp4 sau .docx) nu poate fi o destinație de salvare. Afișarea lor ar aglomera interfața inutil, forțând utilizatorul să caute folderele printre sute de alte fișiere dezactivate pe care oricum nu poate da click (pentru a le selecta ca locație).
+
+Cum poți rezuma verbal pentru comisie:
+
+"Deși ar fi fost ușor să afișez întregul conținut al Drive-ului, am proiectat exploratorul de Google Drive gândindu-mă la scalabilitate și securitate. Interoghez API-ul Google să îmi returneze exclusiv structura de directoare (mimeType de tip folder). Astfel, protejez intimitatea utilizatorului neaccesându-i documentele personale, reduc payload-ul rețelei de la mii de elemente la doar câteva zeci, iar din punct de vedere UI/UX previn aglomerarea vizuală, din moment ce un fișier oricum nu poate reprezenta o locație de salvare pentru videoclipul nou creat."

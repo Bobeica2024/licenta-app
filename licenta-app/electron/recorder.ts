@@ -132,30 +132,34 @@ export function setupRecorderHandlers() {
         }
     });
 
-    // 9. Save File (Move Temp to Final)
-    ipcMain.handle('recorder:save-file', async (_, { tempPath, destination, userId, title, sourceUrl, folderId }) => {
+    // 9. Save File (Move Temp to Final + Convert Format)
+    ipcMain.handle('recorder:save-file', async (_, { tempPath, destination, userId, title, sourceUrl, folderId, format }) => {
         try {
             if (!fs.existsSync(tempPath)) {
                 return { success: false, error: 'Temp file not found' };
             }
 
             let finalPath = '';
+            const targetExtension = format === 'mp4' ? '.mp4' : '.webm';
+            const currentExt = path.extname(tempPath).toLowerCase();
 
             if (destination === 'local') {
+                const filters = format === 'mp4' 
+                    ? [{ name: 'MP4 Video', extensions: ['mp4'] }]
+                    : [{ name: 'WebM Video', extensions: ['webm'] }];
+                
                 const { filePath } = await dialog.showSaveDialog({
                     buttonLabel: 'Save Recording',
-                    defaultPath: `recording-${Date.now()}.webm`,
-                    filters: [{ name: 'WebM Video', extensions: ['webm'] }]
+                    defaultPath: `recording-${Date.now()}${targetExtension}`,
+                    filters: filters
                 });
 
                 if (!filePath) return { success: false, error: 'Cancelled' };
                 finalPath = filePath;
-
-                fs.copyFileSync(tempPath, finalPath);
             } else if (destination === 'drive') {
-                return { success: true, filePath: tempPath };
+                // For drive, finalPath is initially empty, we might use a converted temp path
             } else {
-                // SQLite / DB - save to internal app storage (hidden from user documents)
+                // SQLite / DB - save to internal app storage
                 const userDataPath = app.getPath('userData');
                 const recordingsDir = path.join(userDataPath, 'storage', 'recordings');
 
@@ -163,25 +167,81 @@ export function setupRecorderHandlers() {
                     fs.mkdirSync(recordingsDir, { recursive: true });
                 }
 
-                finalPath = path.join(recordingsDir, path.basename(tempPath));
-                fs.copyFileSync(tempPath, finalPath);
+                const baseName = path.basename(tempPath, currentExt);
+                finalPath = path.join(recordingsDir, `${baseName}${targetExtension}`);
+            }
+
+            let actualPathToUpload = tempPath;
+            const needsConversion = currentExt !== targetExtension;
+
+            if (needsConversion) {
+                if (ffmpegPath) {
+                    ffmpeg.setFfmpegPath(ffmpegPath);
+                } else {
+                    return { success: false, error: 'FFmpeg binary not found for conversion' };
+                }
+
+                let conversionPath = finalPath;
+                if (destination === 'drive') {
+                    conversionPath = tempPath.replace(currentExt, targetExtension);
+                    actualPathToUpload = conversionPath;
+                }
+
+                console.log(`Începere conversie din ${currentExt} în ${targetExtension}...`);
+                await new Promise((resolve, reject) => {
+                    ffmpeg(tempPath)
+                        .output(conversionPath)
+                        .on('end', () => {
+                            console.log('Conversie finalizată.');
+                            resolve(true);
+                        })
+                        .on('error', (err: any) => {
+                            console.error('Eroare conversie FFmpeg:', err);
+                            reject(err);
+                        })
+                        .run();
+                });
+
+                if (destination !== 'drive') {
+                    actualPathToUpload = finalPath;
+                }
+            } else {
+                if (destination !== 'drive') {
+                    fs.copyFileSync(tempPath, finalPath);
+                    actualPathToUpload = finalPath;
+                }
             }
 
             // DB Logging
             if (userId) {
                 try {
                     const stmt = db.prepare('INSERT INTO fragments (user_id, folder_id, title, source_url, file_path) VALUES (?, ?, ?, ?, ?)');
-                    stmt.run(userId, folderId || null, title || 'Untitled Recording', sourceUrl || '', finalPath || tempPath);
+                    stmt.run(userId, folderId || null, title || 'Untitled Recording', sourceUrl || '', actualPathToUpload);
                 } catch (dbErr) {
                     console.error('DB Insert Error:', dbErr);
                 }
             }
 
-            return { success: true, filePath: finalPath };
+            return { success: true, filePath: actualPathToUpload };
 
         } catch (err: any) {
             console.error('Save File Error:', err);
             return { success: false, error: err.message };
         }
+    });
+
+    // 10. Select Video File
+    ipcMain.handle('recorder:select-video', async () => {
+        const { canceled, filePaths } = await dialog.showOpenDialog({
+            buttonLabel: 'Selectează Video',
+            properties: ['openFile'],
+            filters: [
+                { name: 'Video Files', extensions: ['mp4', 'webm', 'mkv', 'ogg', 'mov'] },
+                { name: 'All Files', extensions: ['*'] }
+            ]
+        });
+        
+        if (canceled || filePaths.length === 0) return { success: false };
+        return { success: true, filePath: filePaths[0] };
     });
 }

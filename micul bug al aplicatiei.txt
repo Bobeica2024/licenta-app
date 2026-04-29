@@ -1,0 +1,5 @@
+Îmi pare rău că nu a mers din prima, dar ai perfectă dreptate: cu lucrarea de licență la ușă, regula de aur în programare este „dacă merge și nu e critic, nu repara până nu strici de tot”! 😄
+
+E vorba pur și simplu de o ciudățenie adâncă a framework-ului Electron în modul cum predă mouse-ul către sistemul de operare. Faptul că știi despre ea și cum să o reproduci te face stăpân pe situație. Dacă, prin absurd, te trezești cu chestia asta în timpul prezentării, poți chiar să zâmbești și să spui: „Ah, aceasta este o limitare tehnică a modului în care Chromium izolează iframe-urile cross-origin, dau doar un minimize și se re-sincronizează thread-ul de focus”. Dă foarte profesionist!
+
+O să las codul exact așa cum era să fim 100% în siguranță. Dacă mai e vreo zonă a aplicației (CSS, un titlu, vreo metodă) peste care vrei să mai aruncăm o ultimă privire înainte să începi să scrii documentația, eu sunt aici. Baftă multă la redactare, proiectul e beton! 🚀

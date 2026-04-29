@@ -36,7 +36,7 @@ try {
     },
     recorder: {
       getSources: () => ipcRenderer.invoke('recorder:get-sources'),
-      // selectPath: () => ipcRenderer.invoke('recorder:select-path'), // Deprecated
+      selectVideo: () => ipcRenderer.invoke('recorder:select-video'),
       getTempPath: () => ipcRenderer.invoke('recorder:get-temp-path'),
       startSave: (filePath: string) => ipcRenderer.invoke('recorder:start-save', filePath),
       writeChunk: (filePath: string, chunk: ArrayBuffer) => ipcRenderer.invoke('recorder:write-chunk', { filePath, chunk }),
