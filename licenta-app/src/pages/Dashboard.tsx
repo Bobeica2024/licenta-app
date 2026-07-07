@@ -75,8 +75,19 @@ const Dashboard = () => {
                 // Also ensure we stay within bounds
                 const INSET = 2; // Pixels to shave off edges
 
-                let cropX = Math.round(rect.x * window.devicePixelRatio) + INSET;
-                let cropY = Math.round(rect.y * window.devicePixelRatio) + INSET;
+                // Calculate window frame offsets (title bar and borders)
+                // When desktopCapturer captures the window/screen, 0,0 is the top-left of the OS window (or screen).
+                // getBoundingClientRect() is relative to the *client area* (webview).
+                const diffX = window.outerWidth - window.innerWidth;
+                const diffY = window.outerHeight - window.innerHeight;
+                
+                // Assuming symmetrical left/right borders
+                const borderX = Math.max(0, diffX / 2);
+                // Top offset is usually the title bar (diffY minus bottom border)
+                const titleBarY = Math.max(0, diffY - borderX);
+
+                let cropX = Math.round((rect.x + borderX) * window.devicePixelRatio) + INSET;
+                let cropY = Math.round((rect.y + titleBarY) * window.devicePixelRatio) + INSET;
                 let cropW = Math.round(rect.width * window.devicePixelRatio) - (INSET * 2);
                 let cropH = Math.round(rect.height * window.devicePixelRatio) - (INSET * 2);
 
@@ -317,7 +328,7 @@ const Dashboard = () => {
                 {croppedFilePath && <p>Cale decupată: {croppedFilePath}</p>}
             </div> */}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Stream Area */}
                 <div className="lg:col-span-2 flex flex-col gap-4">
                     <div className="flex flex-col gap-3">

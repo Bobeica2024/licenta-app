@@ -31,10 +31,11 @@ interface Window {
             sendEmail: (data: { to: string; subject: string; text: string; filePath: string; fileName: string }) => Promise<{ success: boolean; error?: string }>;
         };
         library: {
-            getContents: (data: { folderId: number | null; userId: number }) => Promise<any[]>;
+            getContents: (data: { folderId: number | null; userId: number; searchQuery?: string }) => Promise<any[]>;
             createFolder: (data: { name: string; parentId: number | null; userId: number }) => Promise<{ success: boolean; error?: string }>;
             deleteItem: (data: { id: number; type: 'folder' | 'file'; userId: number }) => Promise<{ success: boolean; error?: string }>;
             renameItem: (data: { id: number; type: string; newName: string; userId: number }) => Promise<{ success: boolean; error?: string }>;
+            updateMetadata: (data: { id: number; type: string; name: string; tags: string; description: string; userId: number }) => Promise<{ success: boolean; error?: string }>;
             moveItem: (data: { id: number; type: string; targetFolderId: number | null; userId: number }) => Promise<{ success: boolean; error?: string }>;
             copyItem: (data: { id: number; type: string; targetFolderId: number | null; userId: number }) => Promise<{ success: boolean; error?: string }>;
         };

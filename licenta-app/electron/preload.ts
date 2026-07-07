@@ -58,6 +58,7 @@ try {
       createFolder: (data: any) => ipcRenderer.invoke('library:create-folder', data),
       deleteItem: (data: any) => ipcRenderer.invoke('library:delete-item', data),
       renameItem: (data: any) => ipcRenderer.invoke('library:rename-item', data),
+      updateMetadata: (data: any) => ipcRenderer.invoke('library:update-metadata', data),
       moveItem: (data: any) => ipcRenderer.invoke('library:move-item', data),
       copyItem: (data: any) => ipcRenderer.invoke('library:copy-item', data),
     },

@@ -9,6 +9,8 @@ interface FileSystemItem {
     createdAt?: string;
     filePath?: string; // For files
     duration?: string; // Optional metadata
+    tags?: string;
+    description?: string;
 }
 
 interface FileExplorerProps {
@@ -41,12 +43,22 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
     const [loading, setLoading] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
     const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, item: FileSystemItem } | null>(null);
     const [editingItem, setEditingItem] = useState<{ id: number, type: 'folder' | 'file' } | null>(null);
     const [renameValue, setRenameValue] = useState('');
     const [clipboard, setClipboard] = useState<{ action: 'cut' | 'copy', items: FileSystemItem[] } | null>(null);
     const [detailsItem, setDetailsItem] = useState<FileSystemItem | null>(null);
+    const [detailsForm, setDetailsForm] = useState({ name: '', tags: '', description: '' });
     const [selectedItems, setSelectedItems] = useState<{ id: number | string, type: 'folder' | 'file' }[]>([]);
     const [isDragSelecting, setIsDragSelecting] = useState(false);
     const dragSelectionRef = useRef(false);
@@ -86,10 +98,10 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
     }, [currentPath, currentFolderId, mode]);
 
     useEffect(() => {
-        loadItems(currentFolderId);
-    }, [currentFolderId]);
+        loadItems(currentFolderId, debouncedSearch);
+    }, [currentFolderId, debouncedSearch]);
 
-    const loadItems = async (folderId: number | string | null) => {
+    const loadItems = async (folderId: number | string | null, search: string = '') => {
         setLoading(true);
         try {
             const userStr = localStorage.getItem('user');
@@ -148,7 +160,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
             // Normal DB mode
             setArchiveError(null);
             // @ts-ignore
-            const result = await window.api.library.getContents({ folderId, userId: effectiveUserId });
+            const result = await window.api.library.getContents({ folderId, userId: effectiveUserId, searchQuery: search });
             setItems(result);
         } catch (error) {
             console.error("Failed to load items", error);
@@ -380,7 +392,53 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
     const handleDetails = () => {
         if (contextMenu && contextMenu.item) {
             setDetailsItem(contextMenu.item);
+            setDetailsForm({
+                name: contextMenu.item.name || '',
+                tags: contextMenu.item.tags || '',
+                description: contextMenu.item.description || ''
+            });
             setContextMenu(null);
+        }
+    };
+
+    const handleSaveDetails = async () => {
+        if (!detailsItem || !detailsForm.name.trim()) return;
+        setLoading(true);
+        try {
+            const userStr = localStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+            if (!user) return;
+            const effectiveUserId = overrideUserId ?? user.id;
+
+            // @ts-ignore
+            const res = await window.api.library.updateMetadata({
+                id: detailsItem.id as number,
+                type: detailsItem.type,
+                name: detailsForm.name,
+                tags: detailsForm.tags,
+                description: detailsForm.description,
+                userId: effectiveUserId
+            });
+
+            if (res.success) {
+                // Add to history
+                try {
+                    await window.api.history.add({
+                        userId: user.id,
+                        actionType: 'UPDATE_METADATA',
+                        itemName: detailsForm.name
+                    });
+                } catch (e) { }
+
+                setDetailsItem(null);
+                loadItems(currentFolderId, debouncedSearch);
+            } else {
+                alert("Eroare la salvare: " + res.error);
+            }
+        } catch (error) {
+            alert("A apărut o eroare la salvare.");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -757,22 +815,30 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
 
             {/* Toolbar */}
             <div className="flex items-center justify-between p-2 bg-gray-950/50">
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-1 max-w-xl items-center">
                     <button
                         onClick={handleNavigateUp}
-                        disabled={currentPath.length === 0}
+                        disabled={currentPath.length === 0 || debouncedSearch !== ''}
                         className="flex items-center gap-2 px-3 py-2 hover:bg-gray-800 rounded-lg disabled:opacity-30 transition-colors text-gray-300 hover:text-white"
                         title="Înapoi"
                     >
-                        ⬅️ Înapoi
+                        ⬅️
                     </button>
                     <button
                         onClick={() => setIsCreatingFolder(true)}
                         className="p-2 hover:bg-gray-800 rounded text-green-400"
-                        title="New Folder"
+                        title="Folder nou"
+                        disabled={debouncedSearch !== ''}
                     >
-                        📁 Folder nou
+                        📁
                     </button>
+                    <input
+                        type="text"
+                        placeholder="Caută în DB (nume, tag-uri, descriere, format)..."
+                        className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-blue-500 text-sm"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                 </div>
 
                 {mode === 'select' && (
@@ -1039,25 +1105,55 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
             {/* Details Modal */}
             {detailsItem && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50" onClick={() => setDetailsItem(null)}>
-                    <div className="bg-gray-900 rounded-lg p-6 max-w-sm w-full border border-gray-700 shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full border border-gray-700 shadow-2xl" onClick={e => e.stopPropagation()}>
                         <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                             {detailsItem.type === 'folder' ? '📁' : '🎥'} Detalii {detailsItem.type === 'folder' ? 'Folder' : 'Fișier'}
                         </h3>
-                        <div className="space-y-3 text-sm">
+                        <div className="space-y-4 text-sm">
                             <div>
-                                <label className="text-gray-500 block">Nume</label>
-                                <div className="text-white bg-gray-800 p-2 rounded border border-gray-700">{detailsItem.name}</div>
+                                <label className="text-gray-500 block mb-1">Nume</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-gray-800 text-white p-2 rounded border border-gray-700 focus:border-blue-500 outline-none"
+                                    value={detailsForm.name}
+                                    onChange={(e) => setDetailsForm({ ...detailsForm, name: e.target.value })}
+                                />
                             </div>
                             <div>
-                                <label className="text-gray-500 block">Tip</label>
-                                <div className="text-white">{detailsItem.type === 'folder' ? 'Dosar de fișiere' : 'Fișier Video (WebM)'}</div>
+                                <label className="text-gray-500 block mb-1">Tag-uri (separate prin virgulă)</label>
+                                <input
+                                    type="text"
+                                    placeholder="ex: proiect, prezentare, mp4"
+                                    className="w-full bg-gray-800 text-white p-2 rounded border border-gray-700 focus:border-blue-500 outline-none"
+                                    value={detailsForm.tags}
+                                    onChange={(e) => setDetailsForm({ ...detailsForm, tags: e.target.value })}
+                                />
                             </div>
-                            {detailsItem.createdAt && (
+                            <div>
+                                <label className="text-gray-500 block mb-1">Descriere</label>
+                                <textarea
+                                    placeholder="Adaugă o descriere opțională..."
+                                    className="w-full bg-gray-800 text-white p-2 rounded border border-gray-700 focus:border-blue-500 outline-none min-h-[80px]"
+                                    value={detailsForm.description}
+                                    onChange={(e) => setDetailsForm({ ...detailsForm, description: e.target.value })}
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-gray-500 block">Data Creării</label>
-                                    <div className="text-white">{new Date(detailsItem.createdAt).toLocaleString()}</div>
+                                    <label className="text-gray-500 block">Tip</label>
+                                    <div className="text-gray-300 bg-gray-950 px-2 py-1 rounded text-xs border border-gray-800">
+                                        {detailsItem.type === 'folder' ? 'Dosar de fișiere' : 'Fișier Video/Arhivă'}
+                                    </div>
                                 </div>
-                            )}
+                                {detailsItem.createdAt && (
+                                    <div>
+                                        <label className="text-gray-500 block">Data Creării</label>
+                                        <div className="text-gray-300 bg-gray-950 px-2 py-1 rounded text-xs border border-gray-800">
+                                            {new Date(detailsItem.createdAt).toLocaleDateString()}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                             {detailsItem.filePath && (
                                 <div>
                                     <label className="text-gray-500 block">Locație</label>
@@ -1067,12 +1163,20 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                                 </div>
                             )}
                         </div>
-                        <div className="mt-6 flex justify-end">
+                        <div className="mt-6 flex justify-end gap-3">
                             <button
                                 onClick={() => setDetailsItem(null)}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium"
+                                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-medium"
+                                disabled={loading}
                             >
-                                Închide
+                                Anulează
+                            </button>
+                            <button
+                                onClick={handleSaveDetails}
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium flex items-center"
+                                disabled={loading}
+                            >
+                                {loading ? 'Se salvează...' : 'Salvează modificările'}
                             </button>
                         </div>
                     </div>

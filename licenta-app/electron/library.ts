@@ -12,43 +12,54 @@ interface DBFolder {
 
 export function setupLibraryHandlers() {
     // Get Contents (Folders + Files)
-    ipcMain.handle('library:get-contents', async (_, { folderId, userId }) => {
+    ipcMain.handle('library:get-contents', async (_, { folderId, userId, searchQuery }) => {
         try {
-            // Get folders
-            let foldersQuery = 'SELECT * FROM folders WHERE user_id = ? AND parent_id IS ?';
-            let foldersParams: any[] = [userId, folderId];
+            let folders: DBFolder[] = [];
+            let files: any[] = [];
 
-            // If folderId is provided (not null/undefined), check equality. 
-            // If it is null, we check IS NULL.
-            if (folderId !== null && folderId !== undefined) {
-                foldersQuery = 'SELECT * FROM folders WHERE user_id = ? AND parent_id = ?';
-                foldersParams = [userId, folderId];
+            if (searchQuery && searchQuery.trim() !== '') {
+                // Global search
+                const queryStr = `%${searchQuery.trim()}%`;
+                const foldersQuery = 'SELECT * FROM folders WHERE user_id = ? AND (name LIKE ? OR tags LIKE ? OR description LIKE ?)';
+                folders = db.prepare(foldersQuery).all(userId, queryStr, queryStr, queryStr) as DBFolder[];
+
+                const filesQuery = 'SELECT * FROM fragments WHERE user_id = ? AND (title LIKE ? OR tags LIKE ? OR description LIKE ? OR file_path LIKE ?)';
+                files = db.prepare(filesQuery).all(userId, queryStr, queryStr, queryStr, queryStr) as any[];
             } else {
-                // Root folder: parent_id IS NULL
-                foldersParams = [userId, null];
+                // Folder browsing
+                let foldersQuery = 'SELECT * FROM folders WHERE user_id = ? AND parent_id IS ?';
+                let foldersParams: any[] = [userId, folderId];
+
+                if (folderId !== null && folderId !== undefined) {
+                    foldersQuery = 'SELECT * FROM folders WHERE user_id = ? AND parent_id = ?';
+                    foldersParams = [userId, folderId];
+                } else {
+                    foldersParams = [userId, null];
+                }
+
+                folders = db.prepare(foldersQuery).all(...foldersParams) as DBFolder[];
+
+                let filesQuery = 'SELECT * FROM fragments WHERE user_id = ? AND folder_id IS ?';
+                let filesParams: any[] = [userId, folderId];
+
+                if (folderId !== null && folderId !== undefined) {
+                    filesQuery = 'SELECT * FROM fragments WHERE user_id = ? AND folder_id = ?';
+                    filesParams = [userId, folderId];
+                } else {
+                    filesParams = [userId, null];
+                }
+
+                files = db.prepare(filesQuery).all(...filesParams) as any[];
             }
-
-            const folders = db.prepare(foldersQuery).all(...foldersParams) as DBFolder[];
-
-            // Get files (fragments)
-            let filesQuery = 'SELECT * FROM fragments WHERE user_id = ? AND folder_id IS ?';
-            let filesParams: any[] = [userId, folderId];
-
-            if (folderId !== null && folderId !== undefined) {
-                filesQuery = 'SELECT * FROM fragments WHERE user_id = ? AND folder_id = ?';
-                filesParams = [userId, folderId];
-            } else {
-                filesParams = [userId, null];
-            }
-
-            const files = db.prepare(filesQuery).all(...filesParams) as any[];
 
             // Map to unified format
-            const mappedFolders = folders.map(f => ({
+            const mappedFolders = folders.map((f: any) => ({
                 id: f.id,
                 name: f.name,
                 type: 'folder',
                 parentId: f.parent_id,
+                tags: f.tags,
+                description: f.description,
                 createdAt: f.created_at
             }));
 
@@ -58,6 +69,8 @@ export function setupLibraryHandlers() {
                 type: 'file', // React ui type
                 fileType: f.type, // DB type ('video' | 'archive')
                 parentId: f.folder_id,
+                tags: f.tags,
+                description: f.description,
                 createdAt: f.created_at,
                 filePath: f.file_path,
                 // duration: ...
@@ -149,6 +162,25 @@ export function setupLibraryHandlers() {
         }
     });
 
+    // Update Metadata
+    ipcMain.handle('library:update-metadata', async (_, { id, type, name, tags, description, userId }) => {
+        try {
+            if (!name || !name.trim()) throw new Error('Numele nu poate fi gol');
+
+            if (type === 'folder') {
+                const stmt = db.prepare('UPDATE folders SET name = ?, tags = ?, description = ? WHERE id = ? AND user_id = ?');
+                stmt.run(name, tags || '', description || '', id, userId);
+            } else {
+                const stmt = db.prepare('UPDATE fragments SET title = ?, tags = ?, description = ? WHERE id = ? AND user_id = ?');
+                stmt.run(name, tags || '', description || '', id, userId);
+            }
+            return { success: true };
+        } catch (err: any) {
+            console.error('Error updating metadata:', err);
+            return { success: false, error: err.message };
+        }
+    });
+
     // Move Item
     ipcMain.handle('library:move-item', async (_, { id, type, targetFolderId, userId }) => {
         try {
@@ -195,15 +227,15 @@ export function setupLibraryHandlers() {
                 if (!sourceFolder) return;
 
                 // 2. Create new folder in target
-                const createStmt = db.prepare('INSERT INTO folders (name, parent_id, user_id) VALUES (?, ?, ?)');
-                const result = createStmt.run(sourceFolder.name + (sourceId === id ? ' - Copy' : ''), targetParentId, userId);
+                const createStmt = db.prepare('INSERT INTO folders (name, parent_id, user_id, tags, description) VALUES (?, ?, ?, ?, ?)');
+                const result = createStmt.run(sourceFolder.name + (sourceId === id ? ' - Copy' : ''), targetParentId, userId, (sourceFolder as any).tags || '', (sourceFolder as any).description || '');
                 const newFolderId = result.lastInsertRowid as number;
 
                 // 3. Copy direct files
                 const files = db.prepare('SELECT * FROM fragments WHERE folder_id = ? AND user_id = ?').all(sourceId, userId) as any[];
-                const copyFileStmt = db.prepare('INSERT INTO fragments (user_id, title, type, source_url, file_path, drive_id, created_at, folder_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+                const copyFileStmt = db.prepare('INSERT INTO fragments (user_id, title, type, source_url, file_path, drive_id, created_at, folder_id, tags, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 for (const file of files) {
-                    copyFileStmt.run(userId, file.title, file.type, file.source_url, file.file_path, file.drive_id, new Date().toISOString(), newFolderId);
+                    copyFileStmt.run(userId, file.title, file.type, file.source_url, file.file_path, file.drive_id, new Date().toISOString(), newFolderId, file.tags || '', file.description || '');
                 }
 
                 // 4. Recurse for subfolders
@@ -221,8 +253,8 @@ export function setupLibraryHandlers() {
                 // Single file copy
                 const file = db.prepare('SELECT * FROM fragments WHERE id = ? AND user_id = ?').get(id, userId) as any;
                 if (file) {
-                    const stmt = db.prepare('INSERT INTO fragments (user_id, title, type, source_url, file_path, drive_id, created_at, folder_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-                    stmt.run(userId, file.title + ' - Copy', file.type, file.source_url, file.file_path, file.drive_id, new Date().toISOString(), targetFolderId || null);
+                    const stmt = db.prepare('INSERT INTO fragments (user_id, title, type, source_url, file_path, drive_id, created_at, folder_id, tags, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                    stmt.run(userId, file.title + ' - Copy', file.type, file.source_url, file.file_path, file.drive_id, new Date().toISOString(), targetFolderId || null, file.tags || '', file.description || '');
                 }
             }
             return { success: true };

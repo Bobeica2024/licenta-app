@@ -19,27 +19,31 @@ db.exec(`
     is_admin BOOLEAN DEFAULT 0
   );
 
-  CREATE TABLE IF NOT EXISTS folders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    parent_id INTEGER,
-    user_id INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(parent_id) REFERENCES folders(id) ON DELETE CASCADE,
+    CREATE TABLE IF NOT EXISTS folders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      parent_id INTEGER,
+      user_id INTEGER,
+      tags TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(parent_id) REFERENCES folders(id) ON DELETE CASCADE,
     FOREIGN KEY(user_id) REFERENCES users(id)
   );
   
-  CREATE TABLE IF NOT EXISTS fragments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    folder_id INTEGER,
-    title TEXT NOT NULL,
-    type TEXT DEFAULT 'video',
-    source_url TEXT,
-    file_path TEXT,
-    drive_id TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(user_id) REFERENCES users(id),
+    CREATE TABLE IF NOT EXISTS fragments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      folder_id INTEGER,
+      title TEXT NOT NULL,
+      type TEXT DEFAULT 'video',
+      source_url TEXT,
+      file_path TEXT,
+      drive_id TEXT,
+      tags TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id),
     FOREIGN KEY(folder_id) REFERENCES folders(id) ON DELETE SET NULL
   );
 
@@ -72,6 +76,20 @@ try {
   if (!fragmentsCols.some(c => c.name === 'type')) {
     console.log('Migrating database: Adding type to fragments table');
     db.exec('ALTER TABLE fragments ADD COLUMN type TEXT DEFAULT "video"');
+  }
+
+  // Migrate metadata (tags, description)
+  if (!fragmentsCols.some(c => c.name === 'tags')) {
+    console.log('Migrating database: Adding tags and description to fragments table');
+    db.exec('ALTER TABLE fragments ADD COLUMN tags TEXT DEFAULT ""');
+    db.exec('ALTER TABLE fragments ADD COLUMN description TEXT DEFAULT ""');
+  }
+  
+  const foldersCols = db.pragma('table_info(folders)') as { name: string }[];
+  if (!foldersCols.some(c => c.name === 'tags')) {
+    console.log('Migrating database: Adding tags and description to folders table');
+    db.exec('ALTER TABLE folders ADD COLUMN tags TEXT DEFAULT ""');
+    db.exec('ALTER TABLE folders ADD COLUMN description TEXT DEFAULT ""');
   }
 
   // Rename old admin if it exists
