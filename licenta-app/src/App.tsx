@@ -10,9 +10,6 @@ import History from './pages/History';
 import Users from './pages/Users';
 
 const AppLayout = () => {
-  // Bugfix: Electron/Chromium pierde complet focusul tastaturii după interacțiunea cu un iframe (ex. YouTube).
-  // Prin forțarea window.focus() când dăm click pe orice căsuță de text (input/textarea), 
-  // forțăm sistemul de operare să predea controlul la loc aplicației React.
   useEffect(() => {
     const handleFocusFix = (e: MouseEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {

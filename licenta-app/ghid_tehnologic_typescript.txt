@@ -1,0 +1,64 @@
+Ghid Tehnologii și TypeScript - Pregătire Job / Interviu
+
+Acest document sumarizează stack-ul tehnologic al aplicației tale și modul în care TypeScript este utilizat, oferindu-ți 
+argumente solide pentru interviurile de angajare.
+
+1. Stack-ul Tehnologic (The Big Picture)
+----------------------------------------
+Aplicația este un instrument complex de management media și productivitate, construit pe următoarele piloni:
+
+*   Frontend: React.js (v18) cu TypeScript.
+*   Desktop Framework: Electron.js (permite acces la sistemul de fișiere și resurse hardware).
+*   State Management & UI: Hook-uri React (useState, useEffect, useRef) și Tailwind CSS pentru stilizare modernă.
+*   Bază de Date: SQLite (via better-sqlite3) - stocare locală rapidă și relațională.
+*   Procesare Media: FFmpeg (pentru înregistrare ecran, crop, conversie).
+*   Cloud: Google Drive API (integrare pentru backup și partajare).
+
+2. Utilizarea TypeScript în Aplicație
+-------------------------------------
+TypeScript nu este doar un "layer" peste JavaScript, ci coloana vertebrală care asigură stabilitatea aplicației. Iată punctele 
+cheie:
+
+A. Tipizarea Datelor (Interfaces & Types)
+- Ai definit interfețe clare pentru obiectele din aplicație. 
+  Exemplu: `FileSystemItem` care definește exact ce proprietăți are un fișier sau un folder (id, nume, tip: 'file' | 'folder', 
+  etc.).
+- Beneficiu: Previne erorile de tipul "cannot read property 'x' of undefined" pentru că știi exact ce date primești din baza de 
+date.
+
+B. Integrarea cu React
+- Componentele sunt tipizate folosind `React.FC<Props>`, asigurându-te că fiecare componentă primește exact datele de care are 
+nevoie.
+- State-ul este tipizat generic: `useState<FileSystemItem[]>([])`. Acest lucru garantează că nu poți introduce din greșeală un 
+tip de date eronat în listă.
+
+C. Bridge-ul Electron (Main vs Renderer)
+- Comunicarea între procesul principal (Node.js) și interfață (React) se face prin IPC (Inter-Process Communication).
+- TypeScript ajută la definirea "contractului" de API (window.api), astfel încât frontend-ul să știe exact ce metode sunt 
+disponibile (ex: `window.api.library.getContents`).
+
+D. Siguranța în Operare (Union Types & Enums)
+- Folosești tipuri union pentru a limita opțiunile posibile. 
+  Exemplu: `mode: 'view' | 'select'`. Acest lucru elimină bug-urile cauzate de typo-uri.
+
+3. Avantaje TypeScript pentru Job (Ce să spui la interviu)
+---------------------------------------------------------
+Când ești întrebat de ce folosești TypeScript, poți folosi aceste argumente bazate pe proiectul tău:
+
+1. Mentenabilitate: "Proiectul meu are peste 1000 de linii în anumite componente (ex: FileExplorer.tsx). Fără TypeScript, ar fi 
+fost imposibil să fac refactoring sau să adaug funcții noi fără să stric ceva existent."
+2. Documentație "Self-serving": "Codul devine propria documentație. Când scriu o funcție, TypeScript îmi spune imediat ce 
+parametri așteaptă și ce returnează."
+3. Productivitate: "Erorile sunt prinse în timpul scrierii codului (compile-time), nu când utilizatorul rulează aplicația 
+(runtime). Asta scurtează enorm timpul de debugging."
+4. Experiența în echipă: "TypeScript facilitează lucrul în echipă deoarece interfețele funcționează ca un contract între 
+membrii echipei."
+
+4. Concepte avansate de menționat
+---------------------------------
+- Generics: Folosite în interfețele de API și hook-uri.
+- Type Guards / Casting: Modul în care tratezi datele care vin din surse externe (JSON.parse din sessionStorage).
+- Async/Await cu TypeScript: Gestionarea promisiunilor returnate de API-urile Electron sau Google Drive.
+
+Acest proiect demonstrează că nu doar știi sintaxa de TypeScript, ci înțelegi cum să-l aplici într-un mediu complex 
+(Desktop Hybrid App) unde interacționezi cu baza de date, sistemul de fișiere și API-uri externe.

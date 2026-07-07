@@ -7,7 +7,6 @@ const Settings = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Account settings state
     const userStr = localStorage.getItem('user');
     const currentUser = userStr ? JSON.parse(userStr) : null;
     const [originalUsername] = useState(currentUser?.username || '');
@@ -79,7 +78,6 @@ const Settings = () => {
                 localStorage.setItem('user', JSON.stringify(updatedUser));
                 setAccountMessage({ type: 'success', text: 'Nume de utilizator schimbat cu succes!' });
 
-                // Actualizăm interfața după o scurtă pauză ca să se randeze și meniul
                 setTimeout(() => window.location.reload(), 1500);
             } else {
                 setAccountMessage({ type: 'error', text: result.error || 'Schimbarea a eșuat.' });
@@ -137,7 +135,6 @@ const Settings = () => {
             if (result.success) {
                 alert('Contul a fost șters cu succes.');
 
-                // Log out from Google Drive automatically
                 try {
                    await window.api.drive.logout();
                 } catch(e) {}

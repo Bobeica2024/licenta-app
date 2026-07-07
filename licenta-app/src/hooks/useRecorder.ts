@@ -8,7 +8,7 @@ export const useRecorder = ({ onStop }: UseRecorderProps = {}) => {
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
-    // Initialize from session storage if available
+    
     const [filePath, setFilePath] = useState<string | null>(() => {
         return sessionStorage.getItem('recorder_filePath');
     });
@@ -16,7 +16,6 @@ export const useRecorder = ({ onStop }: UseRecorderProps = {}) => {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Persist filePath to session storage
     useEffect(() => {
         if (filePath) {
             sessionStorage.setItem('recorder_filePath', filePath);
@@ -33,9 +32,7 @@ export const useRecorder = ({ onStop }: UseRecorderProps = {}) => {
 
     const startRecording = async () => {
         try {
-            setIsRecording(true); // Set buffering/loading state immediately to prevent UI glitches
-
-            // 1. Get Sources
+            setIsRecording(true); 
             try {
                 const sources = await window.api.recorder.getSources();
                 const sourceId = sources[0].id; // TODO: Better source selection if needed
@@ -51,20 +48,17 @@ export const useRecorder = ({ onStop }: UseRecorderProps = {}) => {
                             chromeMediaSource: 'desktop',
                             chromeMediaSourceId: sourceId
                         },
-                        cursor: 'never' // Hide cursor in the stream
+                        cursor: 'never' 
                     } as any
                 });
 
-                // 2. Get Temp Path (No Save As Dialog)
                 const tempPath = await window.api.recorder.getTempPath();
                 if (!tempPath) throw new Error("Could not generate temp path");
                 setFilePath(tempPath);
 
-                // 3. Initialize Recorder
                 const recorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
                 mediaRecorderRef.current = recorder;
 
-                // 4. Setup Event Handlers
                 recorder.ondataavailable = async (e) => {
                     if (e.data.size > 0) {
                         const buffer = await e.data.arrayBuffer();
@@ -78,18 +72,14 @@ export const useRecorder = ({ onStop }: UseRecorderProps = {}) => {
                     setIsPaused(false);
                     if (timerRef.current) clearInterval(timerRef.current);
 
-                    // Finalize the file, then callback
                     window.api.recorder.stopSave({ filePath: tempPath }).then(() => {
                         onStop?.(tempPath);
                     });
                 };
 
-                // 5. Start
                 await window.api.recorder.startSave(tempPath);
-                recorder.start(1000); // 1s chunks
-                // setIsRecording(true); // Moved to top
-
-                // Timer
+                recorder.start(1000); 
+               
                 setRecordingTime(0);
                 timerRef.current = setInterval(() => {
                     setRecordingTime(prev => prev + 1);

@@ -9,7 +9,6 @@ const dbPath = path.join(app.getPath('userData'), 'database.sqlite');
 const db = new Database(dbPath);
 db.pragma('foreign_keys = ON');
 
-// Initialize database schema
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,27 +57,23 @@ db.exec(`
 `);
 
 try {
-  // Migrate fragments
   const fragmentsCols = db.pragma('table_info(fragments)') as { name: string }[];
   if (!fragmentsCols.some(c => c.name === 'folder_id')) {
     console.log('Migrating database: Adding folder_id to fragments table');
     db.exec('ALTER TABLE fragments ADD COLUMN folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL');
   }
 
-  // Migrate users
   const usersCols = db.pragma('table_info(users)') as { name: string }[];
   if (!usersCols.some(c => c.name === 'is_admin')) {
     console.log('Migrating database: Adding is_admin to users table');
     db.exec('ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT 0');
   }
 
-  // Migrate fragments to have type
   if (!fragmentsCols.some(c => c.name === 'type')) {
     console.log('Migrating database: Adding type to fragments table');
     db.exec('ALTER TABLE fragments ADD COLUMN type TEXT DEFAULT "video"');
   }
 
-  // Migrate metadata (tags, description)
   if (!fragmentsCols.some(c => c.name === 'tags')) {
     console.log('Migrating database: Adding tags and description to fragments table');
     db.exec('ALTER TABLE fragments ADD COLUMN tags TEXT DEFAULT ""');
@@ -92,17 +87,14 @@ try {
     db.exec('ALTER TABLE folders ADD COLUMN description TEXT DEFAULT ""');
   }
 
-  // Rename old admin if it exists
   const oldAdminStmt = db.prepare('SELECT id FROM users WHERE username = ?');
   const oldAdmin = oldAdminStmt.get('bobeicastefan') as any;
   if (oldAdmin) {
     console.log('Migrating old admin bobeicastefan to admin...');
     try {
         db.prepare('UPDATE users SET username = ? WHERE id = ?').run('admin', oldAdmin.id);
-    } catch(e) { } // In case 'admin' already exists somehow
+    } catch(e) { } 
   }
-
-  // Create or ensure default admin 'admin' has is_admin = 1
   const adminStmt = db.prepare('SELECT id, is_admin FROM users WHERE username = ?');
   const admin = adminStmt.get('admin') as any;
   if (!admin) {
@@ -111,7 +103,6 @@ try {
     const hash = bcrypt.hashSync('ProGoMoRe2026', SALT_ROUNDS);
     insertAdmin.run('admin', hash, 'Admin default account', 1);
   } else if (!admin.is_admin) {
-    // Account existed but is_admin was not set (e.g. created before migration)
     console.log('Updating admin to admin rights...');
     db.prepare('UPDATE users SET is_admin = 1 WHERE username = ?').run('admin');
   }

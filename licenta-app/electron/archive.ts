@@ -4,15 +4,12 @@ import fs from 'fs';
 import AdmZip from 'adm-zip';
 import db from './db';
 
-// Helper to get all files within a folder recursively
 function getFolderFilesRecursively(folderId: number, userId: number, basePath: string): { dbPath: string, actualPath: string }[] {
     let results: { dbPath: string, actualPath: string }[] = [];
 
-    // Get files in this folder
     const files = db.prepare('SELECT title, file_path FROM fragments WHERE folder_id = ? AND user_id = ?').all(folderId, userId) as any[];
     for (const file of files) {
         if (file.file_path && fs.existsSync(file.file_path)) {
-            // Include extension if present in local path, otherwise use title + .webm as default
             const ext = path.extname(file.file_path) || '.webm';
             const safeTitle = file.title.replace(/[^\w\s-]/gi, '') + ext;
             results.push({
@@ -22,7 +19,6 @@ function getFolderFilesRecursively(folderId: number, userId: number, basePath: s
         }
     }
 
-    // Get subfolders
     const subfolders = db.prepare('SELECT id, name FROM folders WHERE parent_id = ? AND user_id = ?').all(folderId, userId) as any[];
     for (const sub of subfolders) {
         const safeFolderName = sub.name.replace(/[^\w\s-]/gi, '');
@@ -49,7 +45,6 @@ export function setupArchiveHandlers() {
                         const ext = path.extname(file.file_path) || '.webm';
                         const safeTitle = file.title.replace(/[^\w\s\-\.]/gi, '').replace(/\.zip$/i, '');
                         const entryName = safeTitle + ext;
-                        // Use addFile with Buffer to correctly handle any file type (incl. zip-in-zip)
                         const content = fs.readFileSync(file.file_path);
                         zip.addFile(entryName, content);
                         addedFilesCount++;
@@ -62,9 +57,7 @@ export function setupArchiveHandlers() {
 
                         for (const f of allFiles) {
                             if (fs.existsSync(f.actualPath)) {
-                                // Use addFile with Buffer for reliable binary handling
                                 const content = fs.readFileSync(f.actualPath);
-                                // f.dbPath contains folder/title.ext structure
                                 const entryName = f.dbPath.replace(/\\/g, '/');
                                 zip.addFile(entryName, content);
                                 addedFilesCount++;
@@ -92,7 +85,6 @@ export function setupArchiveHandlers() {
                 return { success: true, filePath: filePath, destination: 'local' };
             }
 
-            // For DB and Drive, we need a temp/permanent local path first
             const userDataPath = app.getPath('userData');
             const archivesDir = path.join(userDataPath, 'storage', 'archives');
 
@@ -117,7 +109,6 @@ export function setupArchiveHandlers() {
             }
 
             if (destination === 'drive') {
-                // Return path to frontend so it can upload it using drive:upload
                 return { success: true, filePath: finalPath, destination: 'drive', fileName: finalName };
             }
 
@@ -160,8 +151,7 @@ export function setupArchiveHandlers() {
             const tempDir = path.join(app.getPath('temp'), 'fragman-extracted', Date.now().toString());
             fs.mkdirSync(tempDir, { recursive: true });
             
-            // Extragere element specific în directorul temporar
-            zip.extractEntryTo(entryName, tempDir, false, true); // maintainEntryPath = false
+            zip.extractEntryTo(entryName, tempDir, false, true);
             
             const baseName = path.basename(entryName);
             const absoluteTempPath = path.join(tempDir, baseName);

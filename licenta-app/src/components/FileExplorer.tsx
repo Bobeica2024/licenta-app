@@ -425,7 +425,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                 try {
                     await window.api.history.add({
                         userId: user.id,
-                        actionType: 'UPDATE_METADATA',
+                        actionType: 'A actualizat metadatele',
                         itemName: detailsForm.name
                     });
                 } catch (e) { }
@@ -826,15 +826,16 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                     </button>
                     <button
                         onClick={() => setIsCreatingFolder(true)}
-                        className="p-2 hover:bg-gray-800 rounded text-green-400"
+                        className="flex items-center gap-2 px-3 py-2 hover:bg-gray-800 rounded-lg text-green-400 disabled:opacity-30 transition-colors"
                         title="Folder nou"
                         disabled={debouncedSearch !== ''}
                     >
-                        📁
+                        <span>📁</span>
+                        <span className="text-sm font-medium whitespace-nowrap">Folder nou</span>
                     </button>
                     <input
                         type="text"
-                        placeholder="Caută în DB (nume, tag-uri, descriere, format)..."
+                        placeholder="Caută în bibliotecă."
                         className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-blue-500 text-sm"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -860,7 +861,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                         type="text"
                         value={newFolderName}
                         onChange={(e) => setNewFolderName(e.target.value)}
-                        placeholder="Nume folder..."
+                        placeholder="Nume folder."
                         className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-white focus:outline-none focus:border-blue-500"
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') handleCreateFolder();
@@ -1132,7 +1133,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ mode, onSelect, onPlay, ove
                             <div>
                                 <label className="text-gray-500 block mb-1">Descriere</label>
                                 <textarea
-                                    placeholder="Adaugă o descriere opțională..."
+                                    placeholder="Adaugă o descriere opțională."
                                     className="w-full bg-gray-800 text-white p-2 rounded border border-gray-700 focus:border-blue-500 outline-none min-h-[80px]"
                                     value={detailsForm.description}
                                     onChange={(e) => setDetailsForm({ ...detailsForm, description: e.target.value })}

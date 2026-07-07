@@ -6,20 +6,17 @@ interface StreamPlayerProps {
     onPlay?: () => void;
     onPause?: () => void;
     showRawYoutube?: boolean;
-    // toggleRawYoutube no longer needed in props if controlled by parent, 
-    // but we might want to keep the imperative handle or just control it via props.
-    // Let's control it via props completely.
+    
 }
 
 export interface StreamPlayerRef {
     play: () => void;
     pause: () => void;
-    // toggleRawYoutube removed from ref, controlled by prop
+   
 }
 
 const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPlay, onPause, showRawYoutube }, ref) => {
     const [playing, setPlaying] = useState(true);
-    // Use any to bypass strict type checking for the library ref if needed
     const playerRef = useRef<any>(null);
     const rawVideoRef = useRef<HTMLVideoElement>(null);
     const [error, setError] = useState<string | null>(null);
@@ -95,12 +92,12 @@ const StreamPlayer = forwardRef<StreamPlayerRef, StreamPlayerProps>(({ url, onPl
                     config={{
                         youtube: {
                             playerVars: {
-                                origin: window.location.origin, // Reset to standard behavior first
+                                origin: window.location.origin, 
                                 modestbranding: 1,
                                 rel: 0,
-                                iv_load_policy: 3, // Hide annotations
-                                fs: 0, // Disable fullscreen button
-                                disablekb: 1 // Disable keyboard controls (optional, cleaner)
+                                iv_load_policy: 3, 
+                                fs: 0, 
+                                disablekb: 1 
                             }
                         }
                     }}

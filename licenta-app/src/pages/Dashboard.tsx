@@ -335,7 +335,7 @@ const Dashboard = () => {
                         <input
                             type="text"
                             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500"
-                            placeholder="Introdu URL Youtube sau calea fișierului local (ex: C:\Video.mp4)..."
+                            placeholder="Introdu URL Youtube sau calea fișierului local (ex: C:\Video.mp4)."
                             value={inputUrl}
                             onChange={(e) => setInputUrl(e.target.value)}
                             disabled={isRecording}

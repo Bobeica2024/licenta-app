@@ -8,9 +8,7 @@ const Library = () => {
     const currentUser = userStr ? JSON.parse(userStr) : null;
     const isAdmin = !!currentUser?.isAdmin;
 
-    // Admin: list of all users to browse
     const [allUsers, setAllUsers] = useState<{ id: number; username: string; is_admin: number }[]>([]);
-    // Admin: which user's DB to browse (null = own)
     const [viewingUserId, setViewingUserId] = useState<number | null>(null);
 
     useEffect(() => {
@@ -32,7 +30,6 @@ const Library = () => {
     const handlePlay = async (file: any) => {
         setPlayingFile(file);
 
-        // Add to history (always log as current admin)
         try {
             if (currentUser) {
                 await window.api.history.add({

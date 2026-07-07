@@ -20,18 +20,9 @@ import path from 'node:path'
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// The built directory structure
-//
-// ├─┬─┬ dist
-// │ │ └── index.html
-// │ │
-// │ ├─┬ dist-electron
-// │ │ ├── main.js
-// │ │ └── preload.mjs
-// │
+
 process.env.APP_ROOT = path.join(__dirname, '..')
 
-// 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
@@ -40,13 +31,11 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 
 let win: BrowserWindow | null
 
-import fs from 'node:fs'; // Import fs for checking file existence
+import fs from 'node:fs';
 
-// Set the display name of the application (does NOT affect userData path - safe to change)
 app.setName('FragMan');
 
 function createWindow() {
-  // Debug paths
   const appPath = app.getAppPath();
   const preloadPathRef = path.join(__dirname, 'preload.cjs');
   const preloadPathRoot = path.join(appPath, 'dist-electron', 'preload.cjs');
@@ -58,8 +47,7 @@ function createWindow() {
   console.log('Preload (root):', preloadPathRoot, '| Exists:', fs.existsSync(preloadPathRoot));
   console.log('----------------------');
 
-  // const finalPreload = fs.existsSync(preloadPathRef) ? preloadPathRef : preloadPathRoot;
-  // FORCE CJS: The preload script MUST be loaded as .cjs because the project is ESM but preload requires CommonJS context
+
   const finalPreload = path.join(appPath, 'dist-electron', 'preload.cjs');
 
   const preloadExists = fs.existsSync(finalPreload);
@@ -72,7 +60,7 @@ function createWindow() {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: true, // Ensure web security is enabled
+      webSecurity: true, 
     },
   })
 
@@ -84,7 +72,7 @@ function createWindow() {
 
   console.log('Final Preload Path used:', finalPreload);
 
-  // Test active push message to Renderer-process.
+ 
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
   })
@@ -92,14 +80,10 @@ function createWindow() {
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
   } else {
-    // win.loadFile('dist/index.html')
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
 }
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
@@ -108,21 +92,15 @@ app.on('window-all-closed', () => {
 })
 
 app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow()
   }
 })
 
-// Force autoplay to work without interaction
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
-// Fix for black screen on some Windows systems (forces software rendering)
 app.disableHardwareAcceleration();
 
-// Register custom protocol 'media' to be privileged
 import { protocol } from 'electron';
-// import { pathToFileURL } from 'node:url'; // Import pathToFileURL
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -131,21 +109,19 @@ protocol.registerSchemesAsPrivileged([
       secure: true,
       supportFetchAPI: true,
       bypassCSP: true,
-      standard: true, // Behaves like http/file
+      standard: true, 
       stream: true
     }
   }
 ])
 
 app.whenReady().then(() => {
-  // Handle 'media' protocol to serve local files
-  // Handle 'media' protocol to serve local files with Range support
+
   protocol.handle('media', (request) => {
     try {
       const urlObj = new URL(request.url);
       let filePath = urlObj.pathname;
 
-      // Handle Windows drive letters
       if (urlObj.host && /^[a-z]$/i.test(urlObj.host)) {
         filePath = `${urlObj.host}:${filePath}`;
       } else if (process.platform === 'win32' && filePath.startsWith('/') && /^[a-zA-Z]:/.test(filePath.slice(1))) {
@@ -153,7 +129,6 @@ app.whenReady().then(() => {
       }
 
       const decodedPath = decodeURIComponent(filePath);
-      // console.log(`[Media Protocol] Path: ${decodedPath}`);
 
       if (!fs.existsSync(decodedPath)) {
         console.error(`[Media Protocol] File not found: ${decodedPath}`);
@@ -170,18 +145,15 @@ app.whenReady().then(() => {
         const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
         const chunkSize = (end - start) + 1;
 
-        // console.log(`[Media Protocol] Range: ${start}-${end}/${fileSize}`);
 
         const fileStream = fs.createReadStream(decodedPath, { start, end });
 
-        // Convert Node stream to Web ReadableStream
         const stream = new ReadableStream({
           start(controller) {
             fileStream.on('data', (chunk) => {
               try {
                 controller.enqueue(chunk);
               } catch (e) {
-                // Controller might be closed if request was cancelled
                 fileStream.destroy();
               }
             });
@@ -201,11 +173,10 @@ app.whenReady().then(() => {
             'Content-Range': `bytes ${start}-${end}/${fileSize}`,
             'Accept-Ranges': 'bytes',
             'Content-Length': chunkSize.toString(),
-            'Content-Type': 'video/webm', // Adjust based on file type if needed, but we mostly use webm
+            'Content-Type': 'video/webm', 
           }
         });
       } else {
-        // console.log(`[Media Protocol] Full file request`);
         const fileStream = fs.createReadStream(decodedPath);
 
         const stream = new ReadableStream({
@@ -232,7 +203,7 @@ app.whenReady().then(() => {
           headers: {
             'Content-Length': fileSize.toString(),
             'Content-Type': 'video/webm',
-            'Accept-Ranges': 'bytes', // Advertise range support even on full request
+            'Accept-Ranges': 'bytes',
           }
         });
       }
@@ -243,21 +214,15 @@ app.whenReady().then(() => {
     }
   });
 
-  // Intercept requests to YouTube to fake the Referer header
-  // This tricks YouTube into thinking the request comes from YouTube itself or a valid browser
   const { session } = require('electron');
 
   session.defaultSession.webRequest.onBeforeSendHeaders(
     { urls: ['*://*.youtube.com/*', '*://*.googlevideo.com/*'] },
     (details: any, callback: any) => {
-      // details.requestHeaders['Referer'] = 'https://www.youtube.com/';
-      // Force a standard browser User-Agent to prevent YouTube from blocking Electron
-      // details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'; (Commented out for testing)
       callback({ cancel: false, requestHeaders: details.requestHeaders });
     }
   );
 
-  // Allow YouTube to work by adjusting CSP
   session.defaultSession.webRequest.onHeadersReceived((details: any, callback: any) => {
     callback({
       responseHeaders: {

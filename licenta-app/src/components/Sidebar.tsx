@@ -7,7 +7,6 @@ const Sidebar = () => {
 
     const isActive = (path: string) => location.pathname === path;
 
-    // Re-read user on every route change so admin link appears right after login
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const userObj: any = React.useMemo(() => {
         const raw = localStorage.getItem('user');
@@ -19,11 +18,9 @@ const Sidebar = () => {
 
     const handleAuthAction = async () => {
         if (user) {
-            // Logout: clean up any unsaved recording temp files before clearing session
             const recorderFilePath = sessionStorage.getItem('recorder_filePath');
             const croppedFilePath = sessionStorage.getItem('dashboard_croppedFilePath');
 
-            // Delete temp files silently (best effort)
             try {
                 if (croppedFilePath) {
                     // @ts-ignore
@@ -37,11 +34,10 @@ const Sidebar = () => {
                 console.warn('Could not delete temp recording files on logout:', e);
             }
 
-            // Clear session recording state
             sessionStorage.removeItem('recorder_filePath');
             sessionStorage.removeItem('dashboard_croppedFilePath');
 
-            // Log out from Google Drive to protect privacy
+           
             try {
                 // @ts-ignore
                 await window.api.drive.logout();
@@ -51,7 +47,7 @@ const Sidebar = () => {
 
             localStorage.removeItem('user');
         } else {
-            // Login (from Guest)
+            
             localStorage.removeItem('guest');
         }
         navigate('/');
@@ -104,8 +100,8 @@ const Sidebar = () => {
                 <button
                     onClick={handleAuthAction}
                     className={`block w-full px-4 py-3 rounded-full font-bold text-center transition-colors ${user
-                        ? 'bg-black text-red-500 hover:bg-gray-900' // Deconectare (User)
-                        : 'bg-white text-red-600 hover:bg-gray-100' // Conectare (Guest)
+                        ? 'bg-black text-red-500 hover:bg-gray-900' 
+                        : 'bg-white text-red-600 hover:bg-gray-100' 
                         }`}
                 >
                     {user ? 'Deconectare' : 'Conectare'}

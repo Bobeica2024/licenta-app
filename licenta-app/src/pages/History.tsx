@@ -6,7 +6,6 @@ const History = () => {
     const [error, setError] = useState<string | null>(null);
     const [selectedItems, setSelectedItems] = useState<number[]>([]);
     const [playingFile, setPlayingFile] = useState<{ name: string, filePath: string } | null>(null);
-    // Admin: filter by user ('all' | specific userId as string)
     const [filterUserId, setFilterUserId] = useState<string>('all');
     const [allUsers, setAllUsers] = useState<{ id: number; username: string }[]>([]);
 
@@ -58,7 +57,7 @@ const History = () => {
             }
 
             setSelectedItems([]);
-            loadHistory(); // Reload history
+            loadHistory(); 
         } catch (e) {
             alert('A apărut o eroare la ștergere.');
         }
@@ -100,7 +99,6 @@ const History = () => {
         }
     };
 
-    // Dictionary for Romanian translation of action types
     const actionTranslation: Record<string, string> = {
         'VIEW_VIDEO': 'A vizionat',
         'DELETE_ITEM': 'A șters',

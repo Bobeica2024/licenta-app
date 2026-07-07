@@ -19,13 +19,10 @@ let currentTokens: any = null; // Stored in memory for now
 
 export function setupDriveHandlers() {
 
-  // 1. Check Session
   ipcMain.handle('drive:get-session', async () => {
-    // In a real app, strict validation of tokens would happen here
     return { isLoggedIn: !!currentTokens, user: null };
   });
 
-  // 2. Start Auth Flow
   ipcMain.handle('drive:authenticate', async () => {
     return new Promise(async (resolve) => {
       const { OAuth2Client } = await import('google-auth-library');
@@ -81,14 +78,12 @@ export function setupDriveHandlers() {
     });
   });
 
-  // 3. Logout
   ipcMain.handle('drive:logout', async () => {
     currentTokens = null;
     oAuth2Client = null;
     return { success: true };
   });
 
-  // 4. Upload File
   ipcMain.handle('drive:upload', async (_, { filePath, tokens, folderId, title }) => {
     try {
       if (!tokens) {
@@ -96,7 +91,6 @@ export function setupDriveHandlers() {
         tokens = currentTokens;
       }
 
-      // Ensure client has credentials
       if (!oAuth2Client) {
         const { OAuth2Client } = await import('google-auth-library');
         oAuth2Client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
@@ -143,7 +137,6 @@ export function setupDriveHandlers() {
     }
   });
 
-  // 5. List Folders
   ipcMain.handle('drive:list-folders', async (_, { parentId, tokens }) => {
     try {
       if (!tokens) {
@@ -151,7 +144,6 @@ export function setupDriveHandlers() {
         tokens = currentTokens;
       }
 
-      // Ensure client has credentials
       if (!oAuth2Client) {
         const { OAuth2Client } = await import('google-auth-library');
         oAuth2Client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
@@ -178,14 +170,12 @@ export function setupDriveHandlers() {
     }
   });
 
-  // 5. Send Email via Gmail API (not SMTP, uses googleapis directly)
   ipcMain.handle('drive:send-email', async (_, { to, subject, text, filePath, fileName }) => {
     try {
       if (!currentTokens) {
         return { success: false, error: 'Not authenticated with Google' };
       }
 
-      // Ensure client has credentials
       if (!oAuth2Client) {
         const { OAuth2Client } = await import('google-auth-library');
         oAuth2Client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
@@ -194,19 +184,16 @@ export function setupDriveHandlers() {
 
       const { google } = await import('googleapis');
 
-      // Get user email
       const oauth2 = google.oauth2({ auth: oAuth2Client, version: 'v2' });
       const userInfo = await oauth2.userinfo.get();
       const userEmail = userInfo.data.email;
       if (!userEmail) throw new Error('Could not retrieve user email');
 
-      // Build MIME message with attachment
       const fileBuffer = fs.readFileSync(filePath);
       const fileBase64 = fileBuffer.toString('base64');
       const subjectEncoded = subject || 'Fișier atașat de la FragMan';
       const textBody = text || 'Găsește atașat fișierul tău.';
 
-      // Detect MIME type from extension
       const ext = path.extname(fileName).toLowerCase();
       const mimeMap: Record<string, string> = {
         '.zip': 'application/zip',
@@ -217,7 +204,6 @@ export function setupDriveHandlers() {
       };
       const fileMime = mimeMap[ext] || 'application/octet-stream';
 
-      // Build raw RFC 2822 message
       const boundary = `boundary_${Date.now()}`;
       const rawLines = [
         `From: ${userEmail}`,
